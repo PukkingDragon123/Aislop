@@ -9,10 +9,11 @@ import {
   state, hireCost, deskUpgradeCost, decoCost, upgradeCost, officeUpgradeCost,
   capacity, totalWorkers, atCapacity,
 } from '../core/state.js';
-import { DEPARTMENTS, DECORATIONS, PRODUCTS, UPGRADES, DESK_TIERS, OFFICE_LEVELS } from '../core/config.js';
+import { DEPARTMENTS, DECORATIONS, PRODUCTS, UPGRADES, DESK_TIERS, OFFICE_LEVELS, ROSTER, RARITIES } from '../core/config.js';
 import { fmt, money } from '../core/format.js';
 import * as actions from '../sim/actions.js';
-import { stageCapacity, getBottleneck, computeModifiers } from '../sim/economy.js';
+import { fuse, fusionCost, discoveredCount, collectionMultiplier } from '../sim/fusion.js';
+import { stageCapacity, getBottleneck, computeModifiers, getTrend } from '../sim/economy.js';
 import { bus } from '../core/events.js';
 import { toast, modal } from './toast.js';
 import { saveState, resetState, exportSave, importSave } from '../core/state.js';
@@ -23,9 +24,10 @@ let liveUpdaters = [];
 
 const TABS = [
   { id: 'staff', icon: '🧑‍💻', label: 'Staff', render: renderStaff },
-  { id: 'decor', icon: '🪴', label: 'Decor', render: renderDecor },
+  { id: 'lab', icon: '🧬', label: 'Lab', render: renderLab },
   { id: 'products', icon: '🚀', label: 'Products', render: renderProducts },
-  { id: 'upgrades', icon: '⚡', label: 'Upgrades', render: renderUpgrades },
+  { id: 'decor', icon: '🪴', label: 'Decor', render: renderDecor },
+  { id: 'upgrades', icon: '🛠️', label: 'Upgrades', render: renderUpgrades },
   { id: 'office', icon: '🏢', label: 'Office', render: renderOffice },
 ];
 
@@ -126,6 +128,25 @@ function buyButton(label, getCost, onBuy, { canBuy } = {}) {
 
 function tag(text, color) {
   return el('span', { class: 'tag', text, style: { background: color + '22', color } });
+}
+
+// Buy button variant that spends Hype (⚡) instead of cash.
+function hypeButton(label, getCost, onBuy, { canBuy } = {}) {
+  const btn = el('button', { class: 'btn btn-hype' });
+  const update = () => {
+    const cost = getCost();
+    const locked = canBuy ? !canBuy() : false;
+    btn.disabled = locked || !(state.hype >= cost);
+    btn.innerHTML = `<b>${label}</b><span>${fmt(cost)} ⚡</span>`;
+  };
+  btn.addEventListener('click', () => {
+    const res = onBuy();
+    if (res && !res.ok) toast(res.reason, { icon: '🚫', color: '#ff7a7a', ms: 2200 });
+    else renderTab(currentTab);
+  });
+  liveUpdaters.push(update);
+  update();
+  return btn;
 }
 
 // ---------------------------------------------------------------------------
@@ -256,6 +277,70 @@ function miniStat(label, value) {
     el('div', { class: 'mini-val', text: value }),
     el('div', { class: 'mini-label', text: label }),
   ]);
+}
+
+// ---------------------------------------------------------------------------
+//  LAB — fuse Hype to discover & collect brainrot characters
+// ---------------------------------------------------------------------------
+function renderLab(body) {
+  const trend = getTrend();
+  const found = discoveredCount();
+  const total = ROSTER.length;
+  const mult = collectionMultiplier();
+
+  body.appendChild(el('div', { class: 'sheet-hint', html:
+    `Fuse <b>Hype ⚡</b> (earned from publishing) into <b>brainrot characters</b>. Every one you collect <b>permanently multiplies all revenue & followers</b> — gotta fuse 'em all.` }));
+
+  // Current trend.
+  if (trend) {
+    const owned = !!state.discovered[trend.id];
+    const rc = RARITIES[trend.rarity].color;
+    body.appendChild(el('div', { class: 'lab-trend', style: { borderColor: rc, boxShadow: `0 0 22px ${rc}44` } }, [
+      el('div', { class: 'lab-trend-emoji', text: trend.emoji.join('') }),
+      el('div', { class: 'lab-trend-info' }, [
+        el('div', { class: 'lab-trend-label', style: { color: rc }, text: '🔥 TRENDING NOW' }),
+        el('div', { class: 'lab-trend-name', text: trend.name }),
+        el('div', { class: 'lab-trend-sub', text: owned
+          ? `You own it! +${Math.round(trend.mult * 100)}% to everything while it trends`
+          : `Discover it for +${Math.round(trend.mult * 100)}% while it's trending` }),
+      ]),
+    ]));
+  }
+
+  // Fusion action.
+  const c = card({ accent: '#ff4dd8', icon: '🧬', title: 'Fuse a Meme',
+    sub: `${fmt(state.hype)} ⚡`, desc: 'Spend Hype to generate a random brainrot character. Biased toward ones you haven\'t found yet.' });
+  c.actions.appendChild(hypeButton('FUSE', () => fusionCost(), () => fuse()));
+  body.appendChild(c.node);
+  const subEl = c.node.querySelector('.card-sub');
+  liveUpdaters.push(() => { if (subEl) subEl.textContent = `${fmt(state.hype)} ⚡`; });
+
+  // Collection progress.
+  body.appendChild(el('div', { class: 'stat-grid' }, [
+    miniStat('Collected', `${found}/${total}`),
+    el('div', { class: 'mini-stat' }, [
+      el('div', { class: 'mini-val', style: { color: '#49e07d' }, text: `×${mult.toFixed(2)}` }),
+      el('div', { class: 'mini-label', text: 'collection bonus' }),
+    ]),
+  ]));
+
+  // The roster grid.
+  const grid = el('div', { class: 'collection-grid' });
+  for (const ch of ROSTER) {
+    const owned = !!state.discovered[ch.id];
+    const r = RARITIES[ch.rarity];
+    const trending = trend && trend.id === ch.id;
+    grid.appendChild(el('div', {
+      class: `coll ${owned ? 'owned' : 'locked'}`,
+      style: { borderColor: owned ? r.color : 'transparent', boxShadow: owned ? `0 0 12px ${r.color}44` : 'none' },
+    }, [
+      trending ? el('div', { class: 'coll-trend', text: '🔥' }) : null,
+      el('div', { class: 'coll-emoji', text: owned ? ch.emoji.join('') : '❔' }),
+      el('div', { class: 'coll-name', text: owned ? ch.name : '???' }),
+      el('div', { class: 'coll-rar', style: { color: r.color }, text: owned ? `${r.name} +${Math.round(r.collectMult * 100)}%` : '—' }),
+    ]));
+  }
+  body.appendChild(grid);
 }
 
 // ---------------------------------------------------------------------------

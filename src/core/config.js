@@ -182,4 +182,47 @@ export const ECON = {
   offlineCap: 8 * 3600,  // max seconds of offline progress credited
   offlineRate: 0.5,      // offline earns 50% of online rate
   saveInterval: 5,       // seconds between autosaves
+  // --- Brainrot / Fusion / Trend economy ---
+  hypePerPiece: 0.06,    // Hype currency earned per published piece
+  fusionBaseCost: 30,    // Hype cost of the first fusion
+  fusionGrowth: 1.11,    // fusion cost growth per fusion performed
+  dupeRefund: 0.45,      // fraction of cost refunded when a fusion is a duplicate
+  undiscoveredBias: 0.62,// chance a fusion is biased toward an undiscovered character
+  trendInterval: 140,    // seconds a character stays "trending"
 };
+
+// ============================================================================
+//  BRAINROT — the collectible Italian-brainrot characters.
+//  Fuse Hype in the Meme Lab to discover these; each discovered character adds
+//  a permanent compounding global multiplier, and any character can "trend".
+// ============================================================================
+export const RARITIES = {
+  common:    { name: 'Common',    weight: 48, collectMult: 0.03, trendMult: 0.25, color: '#9aa6c0' },
+  rare:      { name: 'Rare',      weight: 27, collectMult: 0.07, trendMult: 0.40, color: '#4fa3ff' },
+  epic:      { name: 'Epic',      weight: 15, collectMult: 0.15, trendMult: 0.60, color: '#b06bff' },
+  legendary: { name: 'Legendary', weight: 8,  collectMult: 0.35, trendMult: 1.00, color: '#ffb02e' },
+  mythic:    { name: 'Mythic',    weight: 2,  collectMult: 0.90, trendMult: 2.00, color: '#ff4d8d' },
+};
+
+export const ROSTER = [
+  { id: 'chimpanzini', name: 'Chimpanzini Bananini', emoji: ['🐵', '🍌'], rarity: 'common',    blurb: 'Banana that went bananas.' },
+  { id: 'frigo',       name: 'Frigo Camelo',          emoji: ['🧊', '🐫'], rarity: 'common',    blurb: 'A fridge with humps. Stays cool under pressure.' },
+  { id: 'tractoro',    name: 'Trattoro Tractoro',     emoji: ['🚜', '🐙'], rarity: 'common',    blurb: 'Octopus tractor. Plows straight through the feed.' },
+  { id: 'pufferini',   name: 'Pufferini Robloxini',   emoji: ['🐡', '🎮'], rarity: 'common',    blurb: 'A Roblox pufferfish. Oof, ouch, owie.' },
+  { id: 'tungtung',    name: 'Tung Tung Tung Sahur',  emoji: ['🪵', '🥢'], rarity: 'rare',      blurb: 'A wooden log that will find you at 3am.' },
+  { id: 'brrbrr',      name: 'Brr Brr Patapim',       emoji: ['🐵', '🌳'], rarity: 'rare',      blurb: 'Half monkey, half tree, fully unhinged.' },
+  { id: 'trippi',      name: 'Trippi Troppi',         emoji: ['🐱', '🦐'], rarity: 'rare',      blurb: 'Cat-shrimp hybrid. Please do not ask.' },
+  { id: 'boneca',      name: 'Boneca Ambalabu',       emoji: ['🐸', '🛞'], rarity: 'rare',      blurb: 'Frog riding a tire. Rolls extremely deep.' },
+  { id: 'tralalero',   name: 'Tralalero Tralala',     emoji: ['🦈', '👟'], rarity: 'epic',      blurb: 'Three-shoed shark. Outruns the algorithm.' },
+  { id: 'ballerina',   name: 'Ballerina Cappuccina',  emoji: ['🩰', '☕'], rarity: 'epic',      blurb: 'Pirouettes powered entirely by espresso.' },
+  { id: 'lirili',      name: 'Lirilì Larilà',         emoji: ['🌵', '🐘'], rarity: 'epic',      blurb: 'Cactus elephant. Time is merely a suggestion.' },
+  { id: 'cappuccino',  name: 'Cappuccino Assassino',  emoji: ['☕', '🥷'], rarity: 'epic',      blurb: 'Silent. Caffeinated. Absolutely lethal.' },
+  { id: 'glorbo',      name: 'Glorbo Fruttodrillo',   emoji: ['🍉', '🐊'], rarity: 'epic',      blurb: 'Watermelon crocodile. The juiciest bite.' },
+  { id: 'bombardiro',  name: 'Bombardiro Crocodilo',  emoji: ['🐊', '✈️'], rarity: 'legendary', blurb: 'Crocodile bomber. Cannot be reasoned with.' },
+  { id: 'bombombini',  name: 'Bombombini Gusini',     emoji: ['🪿', '✈️'], rarity: 'legendary', blurb: 'Goose jet. Honks in sonic booms.' },
+  { id: 'spioniro',    name: 'Spioniro Golubiro',     emoji: ['🕊️', '📷'], rarity: 'legendary', blurb: 'Spy pigeon. Is definitely watching you.' },
+  { id: 'girafa',      name: 'Girafa Celestre',       emoji: ['🦒', '🌌'], rarity: 'mythic',    blurb: 'Cosmic giraffe. Sees every timeline at once.' },
+  { id: 'orcalero',    name: 'Orcalero Orcala',       emoji: ['🐋', '🎧'], rarity: 'mythic',    blurb: 'DJ orca. Drops beats and entire ships.' },
+];
+
+export const ROSTER_BY_ID = Object.fromEntries(ROSTER.map((c) => [c.id, c]));

@@ -7,15 +7,16 @@
 import { initScene, getScene, onFrame, rotateCamera, zoomCamera } from './world/scene.js';
 import { initOffice, setScreenData } from './world/office.js';
 import { initEffects, updateEffects, confettiBurst, viralBurst, floatingText } from './world/effects.js';
-import { tick, computeOffline, getRates, getViralTimer } from './sim/economy.js';
+import { tick, computeOffline, getRates, getViralTimer, initTrend } from './sim/economy.js';
 import { loadState, saveState, state } from './core/state.js';
-import { ECON } from './core/config.js';
+import { ECON, RARITIES } from './core/config.js';
 import { bus } from './core/events.js';
 import { money, fmt, duration } from './core/format.js';
 import { el } from './ui/dom.js';
 import { initHud, update as updateHud } from './ui/hud.js';
 import { initPanels, refresh as refreshPanels } from './ui/panels.js';
 import { initToasts, toast, banner, modal } from './ui/toast.js';
+import { initFeed, updateFeed } from './ui/feed.js';
 
 let office;
 const boot = document.getElementById('boot');
@@ -27,12 +28,14 @@ function start() {
 
   const { fresh } = loadState();
   office = initOffice(getScene());
+  initTrend(); // make sure a character is trending from the start
 
   // UI.
   const ui = document.getElementById('ui');
   initToasts();
   initHud(ui);
   initPanels(ui);
+  initFeed(ui);
   buildCameraControls(ui);
 
   wireEvents();
@@ -64,6 +67,7 @@ function creditOffline() {
         el('div', { class: 'offline-grid' }, [
           el('div', { class: 'offline-stat' }, [el('div', { class: 'mini-val', style: { color: '#49e07d' }, text: '+' + money(summary.money) }), el('div', { class: 'mini-label', text: 'earned' })]),
           el('div', { class: 'offline-stat' }, [el('div', { class: 'mini-val', style: { color: '#6cc6ff' }, text: '+' + fmt(summary.followers) }), el('div', { class: 'mini-label', text: 'followers' })]),
+          el('div', { class: 'offline-stat' }, [el('div', { class: 'mini-val', style: { color: '#ffd166' }, text: '+' + fmt(summary.hype) }), el('div', { class: 'mini-label', text: 'hype ⚡' })]),
         ]),
       ],
       actions: [{ label: 'Nice 🎉', primary: true }],
@@ -88,6 +92,17 @@ function wireEvents() {
   bus.on('productBought', () => { toast('New product line launched! 🚀', { icon: '🚀', color: '#ff9f45' }); confettiBurst(office.randomCelebrationPos(), 90); });
   bus.on('officeExpanded', () => { toast('Office expanded — more room to grow!', { icon: '🏢' }); });
   bus.on('deskUpgraded', () => { toast('Workstations upgraded ✨', { icon: '⬆️', color: '#56cfe1' }); });
+
+  // Brainrot discovery — the big collection moment.
+  bus.on('discovered', ({ char }) => {
+    const r = RARITIES[char.rarity];
+    banner(`${char.emoji.join('')}  ${char.name}`, `${r.name.toUpperCase()} brainrot discovered! +${Math.round(r.collectMult * 100)}% to everything, forever`, { icon: '✦' });
+    for (let i = 0; i < 4; i++) setTimeout(() => confettiBurst(office.randomCelebrationPos(), 150, 1.3), i * 150);
+  });
+  bus.on('fused', ({ duplicate, refund, char }) => {
+    if (duplicate) toast(`Duplicate ${char.name} — refunded ${fmt(refund)} ⚡`, { icon: '♻️', color: '#9aa6c0', ms: 2400 });
+  });
+  bus.on('trend', (t) => toast(`Trending now: ${t.emoji.join('')} ${t.name}`, { icon: '🔥', color: '#ff7a7a', ms: 4000 }));
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +118,7 @@ function startLoop() {
     tick(dt);
     office.update(dt, t);
     updateEffects(dt);
+    updateFeed(dt);
     setScreenData(getRates(), getViralTimer() > 0);
 
     updateHud();

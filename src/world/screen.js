@@ -6,6 +6,7 @@
 
 import * as THREE from '../vendor/three.module.js';
 import { fmt, money } from '../core/format.js';
+import { drawMeme as paintMeme } from '../sim/brainrot.js';
 
 export class BigScreen {
   constructor(width = 7, height = 3.4) {
@@ -32,6 +33,19 @@ export class BigScreen {
     this.group = group;
     this._t = 0;
     this.draw({ followers: 0, perSec: 0, money: 0, products: [], viral: false });
+  }
+
+  // Paint a live brainrot meme across the whole screen (with a "now trending" bar).
+  drawMeme(meme, t = 0) {
+    paintMeme(this.canvas, meme, t);
+    const ctx = this.ctx, W = this.canvas.width;
+    ctx.fillStyle = 'rgba(8,12,24,0.42)';
+    ctx.fillRect(0, 0, W, 50);
+    ctx.fillStyle = '#7bffb0';
+    ctx.font = 'bold 28px system-ui, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText('● AI SLOP.CO  ·  NOW TRENDING', 22, 26);
+    this.tex.needsUpdate = true;
   }
 
   draw(data) {

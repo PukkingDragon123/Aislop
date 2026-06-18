@@ -6,7 +6,7 @@
 //  tiny JSON blob and the world can always be rebuilt from it.
 // ============================================================================
 
-import { DEPARTMENTS, DECORATIONS, PRODUCTS, UPGRADES, OFFICE_LEVELS, DESK_TIERS } from './config.js';
+import { DEPARTMENTS, DECORATIONS, PRODUCTS, UPGRADES, OFFICE_LEVELS, DESK_TIERS, ROSTER } from './config.js';
 
 const SAVE_KEY = 'aislop.save.v1';
 
@@ -33,9 +33,12 @@ export function defaultState() {
     version: 1,
     money: 60,
     followers: 0,
+    hype: 0,
     lifetimeMoney: 0,
     lifetimePublished: 0,
     totalViral: 0,
+    discovered: {},      // rosterId -> true (the brainrot collection)
+    fusionsDone: 0,
     officeLevel: 0,
     depts,
     buffers: { idea: 0, raw: 0, polished: 0, published: 0 },
@@ -70,9 +73,13 @@ function reconcile(saved) {
   s.upgrades = {};
   for (const u of UPGRADES) s.upgrades[u.id] = clampInt(saved.upgrades?.[u.id], 0, u.max);
   s.milestonesHit = { ...(saved.milestonesHit || {}) };
+  s.discovered = {};
+  for (const c of ROSTER) if (saved.discovered?.[c.id]) s.discovered[c.id] = true;
+  s.fusionsDone = clampInt(saved.fusionsDone, 0);
   s.officeLevel = clampInt(saved.officeLevel, 0, OFFICE_LEVELS.length - 1);
   s.money = numOr(saved.money, base.money);
   s.followers = numOr(saved.followers, 0);
+  s.hype = numOr(saved.hype, 0);
   s.lifetimeMoney = numOr(saved.lifetimeMoney, 0);
   s.lifetimePublished = numOr(saved.lifetimePublished, 0);
   s.totalViral = numOr(saved.totalViral, 0);

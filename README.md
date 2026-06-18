@@ -70,6 +70,26 @@ of one thing.
 Your empire **autosaves** locally and keeps earning while the tab is closed
 (offline progress, capped at 8 hours).
 
+### 🧬 The twist: Brainrot Fusion + the Doomscroll
+What makes this *not* just another number-go-up idle game:
+
+- **Hype ⚡** is a second currency earned from every published piece.
+- In the **Lab**, fuse Hype to **discover Italian-brainrot characters** — Tralalero
+  Tralala, Bombardiro Crocodilo, Tung Tung Tung Sahur, Ballerina Cappuccina and
+  more (rarities Common → Mythic). It's a gacha-style collection: *gotta fuse 'em all.*
+- Every character you collect adds a **permanent, compounding global multiplier**
+  to all revenue & followers (a full set is a ~26× boost) — a whole second
+  progression axis layered on top of the office.
+- A **Trend** rotates every couple of minutes: while a character is trending,
+  owning it grants a big temporary multiplier — so the meta keeps shifting and you
+  chase the characters the algorithm wants *right now*.
+- Tap the floating **📱 phone** to open the **Doomscroll** — an endless feed of
+  **real-time procedurally-generated AI meme images** (drawn on canvas, no assets),
+  with live like/view counters. Tap any post to **boost** it for bonus Hype & cash.
+  New discoveries and viral moments burst into the feed.
+- The giant office screen periodically takes over with full-screen animated
+  brainrot, so the whole studio feels gloriously unhinged.
+
 ### Controls
 - **Drag** — orbit the camera. **Pinch / scroll wheel** — zoom.
 - On-screen **⟲ ⟳** buttons rotate, **＋ －** zoom.
@@ -111,8 +131,10 @@ src/
     format.js           1.2K / $3.4M / "1h 4m" formatting
     events.js           tiny event bus
   sim/
-    economy.js          the pipeline tick, viral, milestones, offline progress
+    economy.js          the pipeline tick, viral, milestones, Hype, trends, offline
     actions.js          validated purchases (hire/upgrade/decorate/expand)
+    fusion.js           Hype fusion → discover & collect brainrot characters
+    brainrot.js         procedural "AI" meme image + Italian-brainrot name generator
   world/
     scene.js            renderer, ortho iso camera, lights, orbit/zoom controls
     office.js           layout brain: lanes, desks, workers, decorations, screen
@@ -121,8 +143,9 @@ src/
     effects.js          confetti, floating text, viral shockwave
     screen.js           the live stats wall display
   ui/
-    hud.js              top stats bar
-    panels.js           toolbar + shop sheets (Staff/Decor/Products/Upgrades/Office)
+    hud.js              top stats bar (money / followers / Hype + trend pill)
+    panels.js           toolbar + shop sheets (Staff/Lab/Products/Decor/Upgrades/Office)
+    feed.js             the doomscroll: phone feed of live-generated brainrot posts
     toast.js            toasts, milestone banners, modals
     dom.js              tiny DOM helpers
 ```

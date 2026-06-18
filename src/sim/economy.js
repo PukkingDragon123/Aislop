@@ -10,6 +10,7 @@
 
 import {
   DEPARTMENTS, DESK_TIERS, DECORATIONS, PRODUCTS, UPGRADES, MILESTONES, ECON,
+  ROSTER, RARITIES,
 } from '../core/config.js';
 import { state } from '../core/state.js';
 import { bus } from '../core/events.js';
@@ -17,13 +18,25 @@ import { bus } from '../core/events.js';
 // Transient (non-saved) sim state.
 const live = {
   viralTimer: 0,          // seconds remaining of an active viral spike
-  rates: { money: 0, followers: 0, pieces: 0 }, // smoothed per-second, for HUD
+  rates: { money: 0, followers: 0, pieces: 0, hype: 0 }, // smoothed per-second, for HUD
   bottleneck: null,       // dept id of the current limiting stage
+  trend: null,            // { id, name, rarity, mult, emoji } currently trending
+  trendTimer: 0,
 };
 
 export function getViralTimer() { return live.viralTimer; }
 export function getRates() { return live.rates; }
 export function getBottleneck() { return live.bottleneck; }
+export function getTrend() { return live.trend; }
+
+// Pick a new trending character (called on a timer + once at boot).
+function pickTrend(emit = true) {
+  const c = ROSTER[Math.floor(Math.random() * ROSTER.length)];
+  live.trend = { id: c.id, name: c.name, rarity: c.rarity, mult: RARITIES[c.rarity].trendMult, emoji: c.emoji };
+  live.trendTimer = ECON.trendInterval;
+  if (emit) bus.emit('trend', live.trend);
+}
+export function initTrend() { if (!live.trend) pickTrend(false); }
 
 // --------------------------------------------------------------------------
 //  Aggregate every modifier source into a single multiplier bundle.
@@ -58,6 +71,15 @@ export function computeModifiers() {
   m.productRev = Math.max(1, rev);
   m.productFol = Math.max(1, fol);
 
+  // Collection: each discovered brainrot character compounds a global multiplier.
+  let collection = 1;
+  for (const c of ROSTER) if (state.discovered[c.id]) collection *= 1 + RARITIES[c.rarity].collectMult;
+  m.collection = collection;
+
+  // Trend: if the currently-trending character is in your collection, big boost.
+  m.trend = (live.trend && state.discovered[live.trend.id]) ? 1 + live.trend.mult : 1;
+  m.trendActive = m.trend > 1;
+
   return m;
 }
 
@@ -82,8 +104,8 @@ export function throughput(m = computeModifiers()) {
 // Per-piece economics at this instant (followers feed back into value).
 function pieceEconomics(m) {
   const audienceMult = 1 + ECON.audienceBonus * Math.log10(1 + state.followers);
-  const value = ECON.baseValue * m.value * m.productRev * audienceMult;
-  const followers = ECON.baseFollowers * m.followers * m.productFol;
+  const value = ECON.baseValue * m.value * m.productRev * audienceMult * m.collection * m.trend;
+  const followers = ECON.baseFollowers * m.followers * m.productFol * m.collection * m.trend;
   return { value, followers };
 }
 
@@ -133,9 +155,15 @@ export function tick(dt) {
 
   if (live.viralTimer > 0) live.viralTimer = Math.max(0, live.viralTimer - dt);
 
+  // Rotate the trending character on a timer.
+  live.trendTimer -= dt;
+  if (live.trendTimer <= 0) pickTrend();
+
   // Commit.
+  const hypeEarned = marketed * ECON.hypePerPiece;
   state.money += moneyEarned;
   state.followers += followersEarned;
+  state.hype += hypeEarned;
   state.lifetimeMoney += moneyEarned;
   state.lifetimePublished += marketed;
 
@@ -144,6 +172,7 @@ export function tick(dt) {
   live.rates.money += (moneyEarned / dt - live.rates.money) * k;
   live.rates.followers += (followersEarned / dt - live.rates.followers) * k;
   live.rates.pieces += (marketed / dt - live.rates.pieces) * k;
+  live.rates.hype += (hypeEarned / dt - live.rates.hype) * k;
   throughput(m); // refresh bottleneck id
 
   checkMilestones();
@@ -192,12 +221,14 @@ export function computeOffline(elapsedSec) {
   const pieces = tp * seconds * ECON.offlineRate;
   const money = pieces * econ.value * (1 + m.sponsor);
   const followers = pieces * econ.followers;
+  const hype = pieces * ECON.hypePerPiece;
 
   state.money += money;
   state.followers += followers;
+  state.hype += hype;
   state.lifetimeMoney += money;
   state.lifetimePublished += pieces;
   checkMilestones();
 
-  return { seconds, money, followers, pieces };
+  return { seconds, money, followers, pieces, hype };
 }

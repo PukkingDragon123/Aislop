@@ -7,13 +7,15 @@
 // ============================================================================
 
 import * as THREE from '../vendor/three.module.js';
-import { DEPARTMENTS, DECORATIONS, PRODUCTS, OFFICE_LEVELS, PALETTE } from '../core/config.js';
+import { DEPARTMENTS, DECORATIONS, PRODUCTS, OFFICE_LEVELS, PALETTE, ROSTER_BY_ID } from '../core/config.js';
 import { state } from '../core/state.js';
 import { bus } from '../core/events.js';
 import { buildDesk, buildDecoration } from './furniture.js';
 import { Worker } from './worker.js';
 import { BigScreen } from './screen.js';
 import { setCameraTarget, fitView } from './scene.js';
+import { getTrend } from '../sim/economy.js';
+import { randomMeme, memeFromChar } from '../sim/brainrot.js';
 
 const TILE = 2.2;
 const SIDE_MARGIN = 1.6;   // gap from side walls
@@ -299,16 +301,23 @@ function update(dt, t) {
     if (u.blinkers) for (const b of u.blinkers) b.material.emissiveIntensity = Math.random() < 0.05 ? 0.1 : 0.8;
   }
 
-  // Refresh the big screen a few times a second (keeps the ticker moving even
-  // when live rates haven't changed).
+  // The big screen alternates between a live stats dashboard and full-screen
+  // brainrot memes, so the office always has something animated playing.
+  animT = t;
+  screenModeTimer -= dt;
+  if (screenModeTimer <= 0) {
+    if (screenMode === 'stats') { screenMode = 'meme'; screenModeTimer = 6; currentMeme = pickScreenMeme(); }
+    else { screenMode = 'stats'; screenModeTimer = 9; }
+  }
   screenTimer -= dt;
   if (screenTimer <= 0) {
-    screenTimer = 0.33;
+    screenTimer = screenMode === 'meme' ? 0.1 : 0.33;
     drawScreen();
   }
 }
 
 const screenData = { rates: { money: 0 }, viral: false };
+let screenMode = 'stats', screenModeTimer = 8, currentMeme = null, animT = 0;
 
 // Pushed in from the main loop each frame.
 export function setScreenData(rates, viral) {
@@ -316,7 +325,22 @@ export function setScreenData(rates, viral) {
   screenData.viral = viral;
 }
 
+function pickScreenMeme() {
+  const tr = getTrend();
+  if (tr && Math.random() < 0.6) { const c = ROSTER_BY_ID[tr.id]; if (c) return memeFromChar(c); }
+  return randomMeme();
+}
+
 function drawScreen() {
+  // Viral takeover always wins.
+  if (screenData.viral) {
+    bigScreen.draw({ viral: true, followers: state.followers, perSec: screenData.rates.money, money: state.money, products: [] });
+    return;
+  }
+  if (screenMode === 'meme' && currentMeme) {
+    bigScreen.drawMeme(currentMeme, animT);
+    return;
+  }
   // Owned products become trending bars (weighted by their revenue multiplier).
   const items = PRODUCTS.filter((p) => state.products[p.id]).map((p) => ({
     name: p.name, icon: p.icon, color: '#' + toCss(p), v: p.revMult,
@@ -327,7 +351,7 @@ function drawScreen() {
     perSec: screenData.rates.money,
     money: state.money,
     products: items,
-    viral: screenData.viral,
+    viral: false,
     ticker: TICKERS[Math.floor(tickerIndex / 30) % TICKERS.length],
   });
 }
