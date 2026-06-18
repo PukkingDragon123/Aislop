@@ -1,0 +1,13 @@
+{
+  "name": "aislop",
+  "version": "1.0.0",
+  "description": "AI Slop.co — a cozy 3D isometric idle tycoon where you build an AI content empire.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node serve.js",
+    "dev": "node serve.js"
+  },
+  "keywords": ["game", "idle", "tycoon", "isometric", "threejs", "incremental"],
+  "license": "MIT"
+}

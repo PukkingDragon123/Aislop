@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#11203a" />
+  <meta name="description" content="AI Slop.co — a cozy 3D isometric idle tycoon. Build your AI content empire." />
+  <title>AI Slop.co — Idle AI Content Empire</title>
+  <link rel="stylesheet" href="styles/main.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
+</head>
+<body>
+  <!-- Boot / loading screen -->
+  <div id="boot">
+    <div class="boot-logo">🤖</div>
+    <div class="boot-title">AI SLOP<span>.CO</span></div>
+    <div class="boot-sub">spinning up the servers…</div>
+    <div class="boot-bar"><div class="boot-fill"></div></div>
+  </div>
+
+  <!-- 3D office -->
+  <canvas id="scene"></canvas>
+
+  <!-- UI overlay (pointer-events pass through except on widgets) -->
+  <div id="ui"></div>
+
+  <noscript>
+    <div style="position:fixed;inset:0;display:grid;place-items:center;font-family:system-ui;padding:2rem;text-align:center;">
+      AI Slop.co needs JavaScript enabled to run.
+    </div>
+  </noscript>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
