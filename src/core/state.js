@@ -39,6 +39,11 @@ export function defaultState() {
     totalViral: 0,
     discovered: {},      // rosterId -> true (the brainrot collection)
     fusionsDone: 0,
+    gems: 5,             // premium currency (from quests, ads, the store)
+    boosts: {},          // name -> { mult, until } (epoch ms) timed multipliers
+    questStep: 0,        // index into the quest chain
+    tutorialDone: false,
+    adReadyAt: {},       // adId -> epoch ms the reward is available again
     officeLevel: 0,
     depts,
     buffers: { idea: 0, raw: 0, polished: 0, published: 0 },
@@ -76,6 +81,11 @@ function reconcile(saved) {
   s.discovered = {};
   for (const c of ROSTER) if (saved.discovered?.[c.id]) s.discovered[c.id] = true;
   s.fusionsDone = clampInt(saved.fusionsDone, 0);
+  s.gems = numOr(saved.gems, base.gems);
+  s.boosts = (saved.boosts && typeof saved.boosts === 'object') ? { ...saved.boosts } : {};
+  s.questStep = clampInt(saved.questStep, 0);
+  s.tutorialDone = !!saved.tutorialDone;
+  s.adReadyAt = (saved.adReadyAt && typeof saved.adReadyAt === 'object') ? { ...saved.adReadyAt } : {};
   s.officeLevel = clampInt(saved.officeLevel, 0, OFFICE_LEVELS.length - 1);
   s.money = numOr(saved.money, base.money);
   s.followers = numOr(saved.followers, 0);

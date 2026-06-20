@@ -111,6 +111,14 @@ What makes this *not* just another number-go-up idle game:
 - **Modern, minimal, mobile-first UI** with glassy panels and bottom-sheet shops.
 - Save export/import codes, offline earnings, "welcome back" summary.
 
+### Polished mobile-game layer
+- **Animated title screen** with drifting memes and a juicy Play / Continue button.
+- **Guided tutorial** — a skippable coachmark tour that spotlights the real UI.
+- **Quests** — a 10-step goal chain with a live HUD tracker and gem/cash/Hype rewards, so you always know what to do next.
+- **Watch-ad rewards & gem store** (🛒) — watch a short parody ad for a free boost (2× income, instant cash, Hype, gems), or spend gems on bigger multipliers. Timed boosts show as live HUD chips. *Parody only — no real money.*
+- **Mini-game** (🎮) — "Content Sprint", a 3-round timing QTE that pays out scaled to your timing (perfect runs grant a 2× boost).
+- A second **neon "brainrot" visual register** for the menu, store, ads and mini-games, layered over the calm light "studio" UI.
+
 ---
 
 ## 🧱 Architecture
@@ -135,6 +143,7 @@ src/
     actions.js          validated purchases (hire/upgrade/decorate/expand)
     fusion.js           Hype fusion → discover & collect brainrot characters
     brainrot.js         procedural "AI" meme image + Italian-brainrot name generator
+    meta.js             quests, gems, watch-ad rewards, gem store, timed boosts, mini-game payouts
   world/
     scene.js            renderer, ortho iso camera, lights, orbit/zoom controls
     office.js           layout brain: lanes, desks, workers, decorations, screen
@@ -143,9 +152,13 @@ src/
     effects.js          confetti, floating text, viral shockwave
     screen.js           the live stats wall display
   ui/
-    hud.js              top stats bar (money / followers / Hype + trend pill)
+    menu.js             polished animated title / main menu
+    tutorial.js         first-run coachmark tour (spotlights real UI)
+    hud.js              top bar: money / followers / Hype / gems + quest tracker, trend & boosts
     panels.js           toolbar + shop sheets (Staff/Lab/Products/Decor/Upgrades/Office)
     feed.js             the doomscroll: phone feed of live-generated brainrot posts
+    store.js            watch-ad rewards + gem store + parody full-screen ad
+    minigame.js         "Content Sprint" timing QTE
     toast.js            toasts, milestone banners, modals
     dom.js              tiny DOM helpers
 ```

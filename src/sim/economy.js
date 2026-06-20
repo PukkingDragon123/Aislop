@@ -80,7 +80,24 @@ export function computeModifiers() {
   m.trend = (live.trend && state.discovered[live.trend.id]) ? 1 + live.trend.mult : 1;
   m.trendActive = m.trend > 1;
 
+  // Timed boosts (from watch-ad rewards, gem purchases, mini-games).
+  const now = Date.now();
+  let boost = 1;
+  for (const k in state.boosts) { const b = state.boosts[k]; if (b && b.until > now) boost *= b.mult; }
+  m.boost = boost;
+
   return m;
+}
+
+// Active timed boosts, for the HUD chips.
+export function getActiveBoosts() {
+  const now = Date.now();
+  const out = [];
+  for (const k in state.boosts) {
+    const b = state.boosts[k];
+    if (b && b.until > now) out.push({ name: k, mult: b.mult, remaining: (b.until - now) / 1000 });
+  }
+  return out;
 }
 
 // Capacity (units/sec) of a single stage given current staff + modifiers.
@@ -104,8 +121,8 @@ export function throughput(m = computeModifiers()) {
 // Per-piece economics at this instant (followers feed back into value).
 function pieceEconomics(m) {
   const audienceMult = 1 + ECON.audienceBonus * Math.log10(1 + state.followers);
-  const value = ECON.baseValue * m.value * m.productRev * audienceMult * m.collection * m.trend;
-  const followers = ECON.baseFollowers * m.followers * m.productFol * m.collection * m.trend;
+  const value = ECON.baseValue * m.value * m.productRev * audienceMult * m.collection * m.trend * m.boost;
+  const followers = ECON.baseFollowers * m.followers * m.productFol * m.collection * m.trend * m.boost;
   return { value, followers };
 }
 
