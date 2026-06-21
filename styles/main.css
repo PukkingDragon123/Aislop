@@ -557,3 +557,41 @@ button { font-family: inherit; cursor: pointer; border: none; }
 .reveal-foot .gacha-btn { flex-direction: row; min-width: 120px; gap: 6px; }
 .howto .modal-text { margin: 8px 0; }
 @media (prefers-reduced-motion: reduce) { .spike-btn, .reveal-rays, .dopa-meter.ready { animation: none !important; } }
+
+/* ===========================================================================
+   v4 — chaos zoo: menu diorama, dialogue NPC, jelly pops, punchier colour.
+   =========================================================================== */
+:root { --accent: #7b6cff; }
+
+/* Jelly button/card pops (overshoot easing) */
+.btn-buy, .gacha-btn, .store-btn, .dlg-btn, .tool-btn, .menu-play, .menu-link, .cam-btn { transition: transform .18s cubic-bezier(.34,1.56,.64,1); }
+.btn-buy:active, .gacha-btn:active:not(:disabled), .store-btn:active:not(:disabled), .dlg-btn:active { transform: scale(.88); }
+.card { transition: transform .2s cubic-bezier(.34,1.56,.64,1); }
+
+/* Menu diorama — employee watching a brainrot on the monitor */
+.menu-diorama { position: relative; width: 260px; height: 150px; margin: 0 auto 8px; }
+.mdio-desk { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 220px; height: 26px; border-radius: 10px; background: linear-gradient(#6b4f8a, #4a3766); box-shadow: 0 12px 30px rgba(0,0,0,.45); }
+.mdio-monitor { position: absolute; bottom: 26px; left: 38px; }
+.mdio-screen { width: 122px; height: 92px; border-radius: 12px; border: 5px solid #1a1f33; background: radial-gradient(circle, #2a1c4a, #0c1020); display: grid; place-items: center; box-shadow: 0 0 28px rgba(255,46,154,.55); overflow: hidden; }
+.mdio-brainrot { font-size: 56px; animation: dioWiggle .9s ease-in-out infinite; }
+@keyframes dioWiggle { 0%,100% { transform: rotate(-6deg) scale(1); } 50% { transform: rotate(6deg) scale(1.08); } }
+.mdio-stand { width: 14px; height: 14px; margin: 0 auto; background: #1a1f33; }
+.mdio-emp { position: absolute; bottom: 26px; right: 30px; width: 54px; animation: dioBob 1.4s ease-in-out infinite; }
+@keyframes dioBob { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }
+.mdio-body { width: 46px; height: 40px; margin: -4px auto 0; border-radius: 22px 22px 14px 14px; background: #ff6f91; border: 3px solid #1b1b24; }
+.mdio-head { width: 38px; height: 38px; margin: 0 auto; border-radius: 50%; background: #f6c79b; border: 3px solid #1b1b24; display: flex; gap: 5px; align-items: center; justify-content: center; }
+.mdio-eye { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid #1b1b24; position: relative; }
+.mdio-eye::after { content: ''; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #111; top: 4px; left: 4px; animation: dioGoogly .5s linear infinite alternate; }
+@keyframes dioGoogly { from { transform: translate(-1px, 1px); } to { transform: translate(2px, -1px); } }
+
+/* Dialogue / NPC box */
+.dlg { position: fixed; inset: 0; z-index: 170; display: flex; align-items: flex-end; justify-content: center; padding: 0 12px calc(18px + var(--safe-b)); pointer-events: none; }
+.dlg.show .dlg-box { transform: translateY(0); opacity: 1; }
+.dlg-box { pointer-events: auto; width: min(520px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 16px; box-shadow: var(--shadow); transform: translateY(40px); opacity: 0; transition: .3s cubic-bezier(.2,.9,.3,1); }
+.dlg-row { display: flex; gap: 14px; align-items: flex-start; }
+.dlg-portrait { font-size: 46px; flex: none; animation: float 2.2s ease-in-out infinite; }
+.dlg-name { font-weight: 800; font-size: 14px; color: var(--accent); }
+.dlg-text { font-size: 14px; line-height: 1.5; margin-top: 3px; }
+.dlg-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+.dlg-btn { background: var(--line); color: var(--ink); border-radius: 12px; padding: 10px 16px; font-weight: 700; font-size: 13px; }
+.dlg-btn.primary { background: var(--accent); color: #fff; }

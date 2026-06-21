@@ -10,6 +10,7 @@ import { state } from '../core/state.js';
 const FLOATERS = ['🦈', '🐊', '☕', '🩰', '🍌', '🪿', '🤖', '🎮', '🔥', '✨', '🐵', '🛞', '🦒', '💎', '📱'];
 
 let overlay;
+let dioTimer = null;
 
 export function showMenu({ fresh, onPlay, onTutorial, onReset }) {
   overlay = el('div', { class: 'menu' });
@@ -33,10 +34,23 @@ export function showMenu({ fresh, onPlay, onTutorial, onReset }) {
     menuStat('🏆', fmt(countDiscovered()), 'collected'),
   ]);
 
-  const card = el('div', { class: 'menu-card' }, [
-    el('div', { class: 'menu-logo' }, [
-      el('span', { class: 'menu-logo-bot', text: '🦠' }),
+  // Little diorama: an employee at a desk watching a brainrot on the monitor.
+  const brainrotEl = el('div', { class: 'mdio-brainrot', text: '🦈' });
+  const diorama = el('div', { class: 'menu-diorama' }, [
+    el('div', { class: 'mdio-monitor' }, [el('div', { class: 'mdio-screen' }, [brainrotEl]), el('div', { class: 'mdio-stand' })]),
+    el('div', { class: 'mdio-emp' }, [
+      el('div', { class: 'mdio-head' }, [el('div', { class: 'mdio-eye' }), el('div', { class: 'mdio-eye' })]),
+      el('div', { class: 'mdio-body' }),
     ]),
+    el('div', { class: 'mdio-desk' }),
+  ]);
+  const ROT = ['🦈', '🐊', '🍌', '🩰', '🦒', '🐋', '☕', '🪿'];
+  let ri = 0;
+  clearInterval(dioTimer);
+  dioTimer = setInterval(() => { ri = (ri + 1) % ROT.length; brainrotEl.textContent = ROT[ri]; }, 1100);
+
+  const card = el('div', { class: 'menu-card' }, [
+    diorama,
     el('h1', { class: 'menu-title', html: 'BRAINROT&nbsp;<span>ZOO</span>' }),
     el('p', { class: 'menu-tag', text: 'Generate brainrots. Run the zoo. Get rich. Go feral.' }),
     statsRow,
@@ -57,6 +71,7 @@ export function showMenu({ fresh, onPlay, onTutorial, onReset }) {
 }
 
 function close(cb) {
+  clearInterval(dioTimer); dioTimer = null;
   if (!overlay) { if (cb) cb(); return; }
   overlay.classList.remove('show');
   overlay.classList.add('out');

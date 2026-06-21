@@ -39,8 +39,8 @@ export function initScene(canvasEl) {
   renderer.toneMappingExposure = 1.05;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xcfe3ef);
-  scene.fog = new THREE.Fog(0xcfe3ef, 70, 130);
+  scene.background = new THREE.Color(0xd8e0ff);
+  scene.fog = new THREE.Fog(0xd8e0ff, 70, 130);
 
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 240);
 

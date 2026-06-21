@@ -13,9 +13,9 @@ import { bus } from '../core/events.js';
 import { buildDesk, buildDecoration } from './furniture.js';
 import { Worker } from './worker.js';
 import { BigScreen } from './screen.js';
-import { setCameraTarget, fitView } from './scene.js';
-import { throwProjectile } from './effects.js';
-import { randomMeme, memeFromChar } from '../sim/brainrot.js';
+import { setCameraTarget, fitView, getCamera, getRenderer } from './scene.js';
+import { throwProjectile, confettiBurst, screenShake } from './effects.js';
+import { randomMeme, memeFromChar, renderMemeCanvas } from '../sim/brainrot.js';
 
 const TILE = 2.2;
 const SIDE_MARGIN = 1.6;   // gap from side walls
@@ -31,12 +31,18 @@ let structure = new THREE.Group();        // floor + walls (rebuilt on expand)
 let deskGroup = new THREE.Group();
 let workerGroup = new THREE.Group();
 let decoGroup = new THREE.Group();
+const petGroup = new THREE.Group();       // roaming brainrot pets
 
 let layout;
 const desks = {};       // deptId -> [{mesh, pos}]
 const workers = {};     // deptId -> [Worker]
 let decos = [];         // [{mesh, id}]
+let chaosProps = [];    // [{mesh, id}] tappable/troll decorations
+let pets = [];          // [{sprite, char, ...}] roaming brainrots
 const animated = [];    // decoration meshes with userData animation flags
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const petTexCache = new Map();
 
 let screenTimer = 0;
 let tickerIndex = 0;
@@ -52,13 +58,16 @@ const TICKERS = [
 export function initOffice(sceneRef) {
   scene = sceneRef;
   scene.add(root);
-  root.add(structure, deskGroup, workerGroup, decoGroup);
+  root.add(structure, deskGroup, workerGroup, decoGroup, petGroup);
   rebuildAll();
+  refreshPets();
+  setupTap();
 
   bus.on('hired', ({ deptId }) => addWorkerAndDesk(deptId, state.depts[deptId].workers - 1));
   bus.on('deskUpgraded', ({ deptId }) => rebuildDepartmentDesks(deptId));
   bus.on('decoAdded', ({ id }) => addDecoration(id, state.decorations[id] - 1));
-  bus.on('officeExpanded', () => rebuildAll());
+  bus.on('officeExpanded', () => { rebuildAll(); refreshPets(); });
+  bus.on('pull', () => refreshPets());
 
   return { update, getScreenPos: () => bigScreen.group.position, randomCelebrationPos };
 }
@@ -196,6 +205,7 @@ function addWorkerAndDesk(deptId, i) {
     facing: Math.PI,             // face the monitors / back screen
     requestErrand: makeErrand(deptIndex),
   });
+  worker.group.userData.worker = worker;
   workerGroup.add(worker.group);
   (workers[deptId] || (workers[deptId] = [])).push(worker);
 }
@@ -218,8 +228,11 @@ function addDecoration(id, i) {
   // Face roughly toward room centre.
   mesh.rotation.y = Math.atan2(-slot.x, -slot.z);
   decoGroup.add(mesh);
+  const def = DECORATIONS.find((d) => d.id === id);
+  if (def && def.chaos) { mesh.userData.chaosId = id; chaosProps.push({ mesh, id }); }
   decos.push({ mesh, id });
-  if (mesh.userData.spin || mesh.userData.spin2 || mesh.userData.pulse || mesh.userData.blinkers) animated.push(mesh);
+  const u = mesh.userData;
+  if (u.spin || u.spin2 || u.pulse || u.blinkers || u.swing || u.bob || u.spark) animated.push(mesh);
 }
 
 // Give different decoration types different perimeter offsets so they don't all stack.
@@ -234,7 +247,7 @@ function rebuildAll() {
   clearGroup(deskGroup); clearGroup(workerGroup); clearGroup(decoGroup);
   for (const k in desks) delete desks[k];
   for (const k in workers) delete workers[k];
-  decos = []; animated.length = 0;
+  decos = []; chaosProps = []; animated.length = 0;
 
   buildStructure();
 
@@ -291,6 +304,7 @@ function randomCelebrationPos() {
 // ---------------------------------------------------------------------------
 function update(dt, t) {
   for (const id in workers) for (const w of workers[id]) w.update(dt, t);
+  updatePets(dt, t);
 
   // Ambient decoration animation.
   for (const m of animated) {
@@ -299,6 +313,9 @@ function update(dt, t) {
     if (u.spin2) u.spin2.rotation.y += dt * 0.6;
     if (u.pulse) { const s = 1 + Math.sin(t * 2.2) * 0.06; u.pulse.scale.setScalar(s); }
     if (u.blinkers) for (const b of u.blinkers) b.material.emissiveIntensity = Math.random() < 0.05 ? 0.1 : 0.8;
+    if (u.swing) u.swing.rotation.z = 0.7 + Math.sin(t * 6) * 0.55;
+    if (u.bob) u.bob.position.y = 0.8 + Math.abs(Math.sin(t * 2)) * 0.12;
+    if (u.spark) { u.spark.material.emissiveIntensity = 0.6 + Math.random() * 0.9; u.spark.visible = Math.random() > 0.12; }
   }
 
   // CHAOS — sloppy employees randomly get knocked flat, or square up and start
@@ -333,6 +350,8 @@ export function setScreenData(rates, viral) {
 function flatWorkers() { const a = []; for (const id in workers) for (const w of workers[id]) a.push(w); return a; }
 
 function triggerChaos() {
+  // Chaos props (dino / TNT / bully-bot) occasionally go off on their own.
+  if (chaosProps.length && Math.random() < 0.5) { triggerProp(chaosProps[(Math.random() * chaosProps.length) | 0]); return; }
   const all = flatWorkers();
   if (!all.length) return;
   if (all.length >= 2 && Math.random() < 0.6) {
@@ -347,7 +366,92 @@ function triggerChaos() {
     setTimeout(() => throwProjectile(pb, a.group.position), 850);
     setTimeout(() => { if (Math.random() < 0.5) a.ragdoll(1); else b.ragdoll(1); }, 2200);
   } else {
-    all[(Math.random() * all.length) | 0].ragdoll(1);
+    all[(Math.random() * all.length) | 0].ragdoll();
+  }
+}
+
+// Detonate / stomp / whip a chaos prop: knock nearby employees flat + juice.
+function triggerProp(prop) {
+  if (!prop || !prop.mesh) return;
+  const pos = prop.mesh.position;
+  const radius = prop.id === 'tnt' ? 6.5 : prop.id === 'dino' ? 4.5 : 3;
+  for (const w of flatWorkers()) {
+    if (Math.hypot(w.group.position.x - pos.x, w.group.position.z - pos.z) < radius) w.ragdoll();
+  }
+  confettiBurst(new THREE.Vector3(pos.x, 1.3, pos.z), prop.id === 'tnt' ? 220 : 90, prop.id === 'tnt' ? 1.6 : 1);
+  screenShake(prop.id === 'tnt' ? 2 : prop.id === 'dino' ? 1.1 : 0.7);
+  if (prop.id !== 'whip') {
+    const n = prop.id === 'tnt' ? 6 : 3;
+    for (let i = 0; i < n; i++) throwProjectile({ x: pos.x, y: 1.3, z: pos.z }, { x: pos.x + (Math.random() - 0.5) * 9, z: pos.z + (Math.random() - 0.5) * 9 });
+  }
+}
+
+// ---- roaming brainrot pets ------------------------------------------------
+function petTexture(char) {
+  if (petTexCache.has(char.id)) return petTexCache.get(char.id);
+  const t = new THREE.CanvasTexture(renderMemeCanvas(128, memeFromChar(char)));
+  t.colorSpace = THREE.SRGBColorSpace; petTexCache.set(char.id, t); return t;
+}
+function randomFloorPoint() { return { x: (Math.random() - 0.5) * layout.W * 0.7, z: (Math.random() - 0.5) * layout.D * 0.55 }; }
+function refreshPets() {
+  const ids = Object.keys(state.collection).slice(0, 8); // cap visible pets
+  for (const p of pets) petGroup.remove(p.sprite);
+  pets = [];
+  for (const id of ids) {
+    const c = ROSTER_BY_ID[id]; if (!c) continue;
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: petTexture(c), transparent: true }));
+    spr.scale.set(1.05, 1.05, 1);
+    const fp = randomFloorPoint(); spr.position.set(fp.x, 0.55, fp.z);
+    petGroup.add(spr);
+    pets.push({ sprite: spr, char: c, target: randomFloorPoint(), speed: 1.2 + Math.random() * 0.9, attackCd: 5 + Math.random() * 8, phase: Math.random() * 9, faceDir: 1 });
+  }
+}
+function updatePets(dt, t) {
+  for (const p of pets) {
+    const spr = p.sprite;
+    const dx = p.target.x - spr.position.x, dz = p.target.z - spr.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.25) p.target = randomFloorPoint();
+    else { const step = Math.min(dist, p.speed * dt); spr.position.x += dx / dist * step; spr.position.z += dz / dist * step; if (Math.abs(dx) > 0.02) p.faceDir = dx > 0 ? 1 : -1; }
+    const jelly = 1 + Math.abs(Math.sin(t * 6 + p.phase)) * 0.1;
+    spr.scale.set(1.05 * p.faceDir, 1.05 * jelly, 1);
+    spr.position.y = 0.55 + Math.abs(Math.sin(t * 6 + p.phase)) * 0.16;
+    p.attackCd -= dt;
+    if (p.attackCd <= 0) {
+      p.attackCd = 6 + Math.random() * 10;
+      const all = flatWorkers();
+      if (all.length) { const w = all[(Math.random() * all.length) | 0]; p.target = { x: w.group.position.x, z: w.group.position.z }; w.ragdoll(); screenShake(0.4); }
+    }
+  }
+}
+
+// ---- tap-to-bully ---------------------------------------------------------
+function setupTap() {
+  const rdr = getRenderer();
+  if (!rdr) return;
+  const dom = rdr.domElement;
+  let dx0 = 0, dy0 = 0, t0 = 0;
+  dom.addEventListener('pointerdown', (e) => { dx0 = e.clientX; dy0 = e.clientY; t0 = performance.now(); });
+  dom.addEventListener('pointerup', (e) => {
+    if (Math.hypot(e.clientX - dx0, e.clientY - dy0) > 8 || performance.now() - t0 > 450) return; // it was a drag
+    handleTap(e);
+  });
+}
+function handleTap(e) {
+  const dom = getRenderer().domElement, r = dom.getBoundingClientRect();
+  ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, getCamera());
+  const targets = [];
+  for (const id in workers) for (const w of workers[id]) targets.push(w.body);
+  for (const p of chaosProps) targets.push(p.mesh);
+  const hits = raycaster.intersectObjects(targets, true);
+  if (!hits.length) return;
+  let o = hits[0].object;
+  while (o) {
+    if (o.userData && o.userData.worker) { o.userData.worker.ragdoll(); confettiBurst(new THREE.Vector3(o.parent.position.x, 1.5, o.parent.position.z), 30, 0.8); screenShake(0.5); return; }
+    if (o.userData && o.userData.chaosId) { triggerProp({ mesh: o, id: o.userData.chaosId }); return; }
+    o = o.parent;
   }
 }
 

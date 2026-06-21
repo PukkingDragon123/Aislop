@@ -235,6 +235,44 @@ export function buildDecoration(id) {
       light.position.y = 1.1; g.add(light);
       break;
     }
+    case 'food': {
+      g.add(at(box(1.2, 0.5, 0.6, 0xe8c9a0, { rough: 0.7 }), 0, 0.55, 0)); // counter
+      g.add(at(box(1.2, 0.1, 0.6, 0x8a5a2b), 0, 0.82, 0));
+      g.add(at(sphere(0.16, 0x8a5a2b), -0.3, 0.95, 0)); // burger bun
+      g.add(at(cyl(0.17, 0.17, 0.06, 0x6abf4a), -0.3, 0.9, 0)); // lettuce
+      g.add(at(box(0.1, 0.5, 0.1, 0xffd166, { emissive: 0xffd166, ei: 0.4 }), 0.4, 0.95, 0.2)); // fries
+      break;
+    }
+    case 'whip': {
+      g.add(at(cyl(0.32, 0.4, 0.5, 0x44506a, { metal: 0.5 }), 0, 0.25, 0)); // base
+      const bodyW = at(box(0.5, 0.6, 0.4, 0xff5d8f, { rough: 0.4 }), 0, 0.8, 0); g.add(bodyW);
+      g.add(at(sphere(0.2, 0xffe0bd), 0, 1.2, 0)); // head
+      g.add(at(sphere(0.06, 0x223, { emissive: 0x6cc6ff, ei: 0.8 }), -0.08, 1.24, 0.16));
+      g.add(at(sphere(0.06, 0x223, { emissive: 0x6cc6ff, ei: 0.8 }), 0.08, 1.24, 0.16));
+      const arm = at(cyl(0.05, 0.05, 0.6, 0x2b2f36), 0.35, 0.95, 0.1); arm.rotation.z = 0.7;
+      g.userData.swing = arm; g.add(arm); // bully arm (swings)
+      g.add(at(box(0.18, 0.12, 0.04, 0x111), 0.6, 1.2, 0.1)); // glove
+      break;
+    }
+    case 'dino': {
+      const body = at(sphere(0.55, 0x4caf6e, { detail: 2, rough: 0.6 }), 0, 0.8, 0); body.scale.set(1.1, 1, 1.4); g.add(body);
+      const head = at(sphere(0.34, 0x57bd78, { detail: 2 }), 0, 1.25, 0.55); g.add(head);
+      g.add(at(box(0.4, 0.12, 0.2, 0xffffff), 0, 1.16, 0.78)); // snout/teeth
+      g.add(at(sphere(0.07, 0x111), -0.13, 1.34, 0.78)); g.add(at(sphere(0.07, 0x111), 0.13, 1.34, 0.78));
+      const tail = at(cyl(0.05, 0.28, 0.9, 0x4caf6e), 0, 0.7, -0.7); tail.rotation.x = 1.1; g.add(tail);
+      for (const dx of [-0.25, 0.25]) g.add(at(cyl(0.12, 0.16, 0.5, 0x3f9c60), dx, 0.25, 0.1));
+      g.userData.bob = body;
+      break;
+    }
+    case 'tnt': {
+      const crate = at(cyl(0.45, 0.45, 0.8, 0xd23b3b, { rough: 0.6 }), 0, 0.4, 0); g.add(crate);
+      g.add(at(cyl(0.46, 0.46, 0.16, 0xf2e9d8), 0, 0.55, 0));
+      g.add(at(cyl(0.46, 0.46, 0.16, 0xf2e9d8), 0, 0.2, 0));
+      const fuse = at(cyl(0.03, 0.03, 0.3, 0x3a3a3a), 0.1, 0.95, 0); fuse.rotation.z = -0.3; g.add(fuse);
+      const spark = at(sphere(0.08, 0xffd166, { emissive: 0xffd166, ei: 1.2, noShadow: true }), 0.22, 1.08, 0);
+      g.userData.spark = spark; g.add(spark);
+      break;
+    }
     default:
       g.add(at(box(0.6, 0.6, 0.6, 0xcccccc), 0, 0.3, 0));
   }

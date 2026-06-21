@@ -7,7 +7,7 @@ import { el } from './dom.js';
 import { state, capacity, totalWorkers } from '../core/state.js';
 import { OFFICE_LEVELS } from '../core/config.js';
 import { fmt, money, rate, duration } from '../core/format.js';
-import { getRates, getViralTimer, getDopamine } from '../sim/economy.js';
+import { getRates, getViralTimer } from '../sim/economy.js';
 import { currentQuest } from '../sim/quests.js';
 import { bus } from '../core/events.js';
 
@@ -39,14 +39,7 @@ export function initHud(container) {
     ]),
     el('div', { class: 'quest-prog' }),
   ]);
-  // Dopamine meter.
-  refs.dopaWrap = el('div', { class: 'dopa-meter' }, [
-    el('div', { class: 'dopa-fill' }),
-    el('div', { class: 'dopa-label', text: '🧠 DOPAMINE' }),
-  ]);
-  refs.dopaFill = refs.dopaWrap.querySelector('.dopa-fill');
-
-  const sub = el('div', { class: 'hud-sub' }, [refs.quest, refs.dopaWrap]);
+  const sub = el('div', { class: 'hud-sub' }, [refs.quest]);
 
   const bar = el('div', { class: 'hud' }, [
     el('div', { class: 'hud-brand' }, [
@@ -99,9 +92,4 @@ export function update() {
     refs.quest.querySelector('.quest-prog').textContent = '✓';
     refs.quest.querySelector('.quest-fill').style.width = '100%';
   }
-
-  const dopa = getDopamine();
-  refs.dopaFill.style.width = `${Math.round((dopa.timer > 0 ? 1 : dopa.meter) * 100)}%`;
-  refs.dopaWrap.classList.toggle('ready', dopa.ready);
-  refs.dopaWrap.classList.toggle('active', dopa.timer > 0);
 }

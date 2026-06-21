@@ -1,9 +1,8 @@
 // ============================================================================
 //  Economy — the digital zoo.
 //  Brainrots ARE the income: each owned character produces coins/sec by rarity
-//  × level. Employees (the office you build) multiply that output, decorations
-//  add morale, followers add an audience bonus, and viral / dopamine spikes
-//  pour fuel on the fire.
+//  × level. Employees multiply that output, decorations add morale, followers
+//  add an audience bonus, and viral spikes pour fuel on the fire.
 // ============================================================================
 
 import { DEPARTMENTS, DESK_TIERS, DECORATIONS, MILESTONES, ECON, ROSTER_BY_ID, RARITIES } from '../core/config.js';
@@ -13,15 +12,10 @@ import { bus } from '../core/events.js';
 const live = {
   viralTimer: 0,
   rates: { money: 0, followers: 0 },
-  dopamine: 0,        // 0..1 meter
-  dopamineTimer: 0,   // seconds of active spike
 };
 
 export function getViralTimer() { return live.viralTimer; }
 export function getRates() { return live.rates; }
-export function getDopamine() { return { meter: live.dopamine, timer: live.dopamineTimer, ready: live.dopamine >= 1 && live.dopamineTimer <= 0 }; }
-export function isDopamineActive() { return live.dopamineTimer > 0; }
-export function addDopamine(amount) { if (live.dopamineTimer <= 0) live.dopamine = Math.min(1, live.dopamine + amount); }
 
 // Base coins/sec produced by the zoo (before any multipliers).
 export function brainrotIncome() {
@@ -34,7 +28,6 @@ export function brainrotIncome() {
 }
 export function collectionCount() { return Object.keys(state.collection).length; }
 
-// Raw employee "power" (drives the income multiplier).
 export function employeeOutput() {
   let o = 0;
   for (const d of DEPARTMENTS) {
@@ -57,10 +50,9 @@ export function computeModifiers() {
     empMult: 1 + employeeOutput() * ECON.empPower,
     audience: 1 + ECON.audienceBonus * Math.log10(1 + state.followers),
     viral: live.viralTimer > 0 ? ECON.viralMultiplier : 1,
-    dopamine: live.dopamineTimer > 0 ? ECON.dopamineMultiplier : 1,
     morale,
   };
-  m.total = m.empMult * m.moraleMult * m.audience * m.viral * m.dopamine;
+  m.total = m.empMult * m.moraleMult * m.audience * m.viral;
   return m;
 }
 
@@ -68,12 +60,10 @@ export function incomePerSec(m = computeModifiers()) {
   return brainrotIncome() * m.total;
 }
 
-// --------------------------------------------------------------------------
 export function tick(dt) {
   const m = computeModifiers();
   const base = brainrotIncome();
 
-  // Viral roll (only while the zoo is actually earning).
   if (base > 0 && live.viralTimer <= 0) {
     if (Math.random() < 1 - Math.exp(-ECON.viralBaseChance * dt)) {
       live.viralTimer = ECON.viralDuration;
@@ -82,7 +72,6 @@ export function tick(dt) {
     }
   }
   if (live.viralTimer > 0) live.viralTimer = Math.max(0, live.viralTimer - dt);
-  if (live.dopamineTimer > 0) live.dopamineTimer = Math.max(0, live.dopamineTimer - dt);
 
   const coins = base * m.total * dt;
   const followers = base * ECON.baseFollowers * m.audience * (m.viral > 1 ? 3 : 1) * dt;
@@ -91,28 +80,19 @@ export function tick(dt) {
   state.followers += followers;
   state.lifetimeMoney += coins;
 
-  // Dopamine meter trickles up while earning (faster when busy); pauses mid-spike.
-  if (live.dopamineTimer <= 0 && base > 0) {
-    live.dopamine = Math.min(1, live.dopamine + dt / 70);
-  }
-
   const k = Math.min(1, dt * 2.5);
   live.rates.money += (coins / dt - live.rates.money) * k;
   live.rates.followers += (followers / dt - live.rates.followers) * k;
 
   checkMilestones();
-  if (coins > 0) bus.emit('earn', { coins, viral: m.viral > 1 || m.dopamine > 1 });
+  if (coins > 0) bus.emit('earn', { coins, viral: m.viral > 1 });
   return { coins, followers };
 }
 
-// Player taps the charged meter → euphoric overdrive.
-export function triggerDopamine() {
-  if (live.dopamine < 1 || live.dopamineTimer > 0) return false;
-  live.dopamine = 0;
-  live.dopamineTimer = ECON.dopamineDuration;
-  state.spikes++;
-  bus.emit('dopamine', { multiplier: ECON.dopamineMultiplier, duration: ECON.dopamineDuration });
-  return true;
+// External one-off cash injection (e.g. the Orca Tank investor offer).
+export function grantCash(amount) {
+  state.money += amount;
+  state.lifetimeMoney += amount;
 }
 
 function checkMilestones() {
@@ -130,7 +110,6 @@ export function computeOffline(elapsedSec) {
   const m = computeModifiers();
   const base = brainrotIncome();
   if (base <= 0) return null;
-  // Offline ignores viral + dopamine.
   const rate = base * m.empMult * m.moraleMult * m.audience * ECON.offlineRate;
   const coins = rate * seconds;
   const followers = base * ECON.baseFollowers * m.audience * ECON.offlineRate * seconds;
