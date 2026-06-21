@@ -1,101 +1,41 @@
 // ============================================================================
-//  Game state + persistence + cost formulas
-// ----------------------------------------------------------------------------
-//  State is intentionally just numbers/flags — the 3D office layout is derived
-//  deterministically from these counts (see world/office.js), so saving is a
-//  tiny JSON blob and the world can always be rebuilt from it.
+//  Game state + persistence + cost formulas (Zoo edition).
+//  Two currencies: coins 🪙 (earned by your brainrot zoo) and tokens 🎟️
+//  (won from quests, spent on gacha). The collection maps brainrotId -> level.
 // ============================================================================
 
-import { DEPARTMENTS, DECORATIONS, PRODUCTS, UPGRADES, OFFICE_LEVELS, DESK_TIERS, ROSTER } from './config.js';
+import { DEPARTMENTS, DECORATIONS, OFFICE_LEVELS, DESK_TIERS, ROSTER, ECON } from './config.js';
 
-const SAVE_KEY = 'aislop.save.v1';
+const SAVE_KEY = 'aislop.save.v2';
 
 export function defaultState() {
   const depts = {};
   for (const d of DEPARTMENTS) depts[d.id] = { workers: 0, tier: 0 };
-  // Start the player with one worker in each stage so the pipeline flows from
-  // second one — idle games should always feel alive immediately.
-  depts.trends.workers = 1;
+  // A few starter employees so the zoo has staff from second one.
   depts.creation.workers = 1;
-  depts.editing.workers = 1;
-  depts.publishing.workers = 1;
   depts.marketing.workers = 1;
 
   const decorations = {};
   for (const d of DECORATIONS) decorations[d.id] = 0;
-  const products = {};
-  for (const p of PRODUCTS) products[p.id] = false;
-  products.videos = true; // AI Videos line is free from the start.
-  const upgrades = {};
-  for (const u of UPGRADES) upgrades[u.id] = 0;
 
   return {
-    version: 1,
-    money: 60,
+    version: 2,
+    money: 200,            // coins 🪙
+    tokens: 5,             // 🎟️ gacha currency
     followers: 0,
-    hype: 0,
     lifetimeMoney: 0,
-    lifetimePublished: 0,
     totalViral: 0,
-    discovered: {},      // rosterId -> true (the brainrot collection)
-    fusionsDone: 0,
-    gems: 5,             // premium currency (from quests, ads, the store)
-    boosts: {},          // name -> { mult, until } (epoch ms) timed multipliers
-    questStep: 0,        // index into the quest chain
-    tutorialDone: false,
-    adReadyAt: {},       // adId -> epoch ms the reward is available again
+    pulls: 0,              // gacha pulls performed
+    spikes: 0,             // dopamine spikes triggered
+    questStep: 0,
     officeLevel: 0,
     depts,
-    buffers: { idea: 0, raw: 0, polished: 0, published: 0 },
     decorations,
-    products,
-    upgrades,
+    collection: { chimpanzini: 1 }, // start with one common exhibit
     milestonesHit: {},
     startTime: Date.now(),
     lastSeen: Date.now(),
   };
-}
-
-// Deep-ish merge so old saves survive new config keys.
-function reconcile(saved) {
-  const base = defaultState();
-  if (!saved || typeof saved !== 'object') return base;
-  const s = { ...base, ...saved };
-  s.depts = {};
-  for (const d of DEPARTMENTS) {
-    const sd = saved.depts?.[d.id] || {};
-    s.depts[d.id] = {
-      workers: clampInt(sd.workers, base.depts[d.id].workers),
-      tier: clampInt(sd.tier, 0, DESK_TIERS.length - 1),
-    };
-  }
-  s.buffers = { ...base.buffers, ...(saved.buffers || {}) };
-  s.decorations = {};
-  for (const d of DECORATIONS) s.decorations[d.id] = clampInt(saved.decorations?.[d.id], 0);
-  s.products = { ...base.products };
-  for (const p of PRODUCTS) if (saved.products?.[p.id]) s.products[p.id] = true;
-  s.products.videos = true;
-  s.upgrades = {};
-  for (const u of UPGRADES) s.upgrades[u.id] = clampInt(saved.upgrades?.[u.id], 0, u.max);
-  s.milestonesHit = { ...(saved.milestonesHit || {}) };
-  s.discovered = {};
-  for (const c of ROSTER) if (saved.discovered?.[c.id]) s.discovered[c.id] = true;
-  s.fusionsDone = clampInt(saved.fusionsDone, 0);
-  s.gems = numOr(saved.gems, base.gems);
-  s.boosts = (saved.boosts && typeof saved.boosts === 'object') ? { ...saved.boosts } : {};
-  s.questStep = clampInt(saved.questStep, 0);
-  s.tutorialDone = !!saved.tutorialDone;
-  s.adReadyAt = (saved.adReadyAt && typeof saved.adReadyAt === 'object') ? { ...saved.adReadyAt } : {};
-  s.officeLevel = clampInt(saved.officeLevel, 0, OFFICE_LEVELS.length - 1);
-  s.money = numOr(saved.money, base.money);
-  s.followers = numOr(saved.followers, 0);
-  s.hype = numOr(saved.hype, 0);
-  s.lifetimeMoney = numOr(saved.lifetimeMoney, 0);
-  s.lifetimePublished = numOr(saved.lifetimePublished, 0);
-  s.totalViral = numOr(saved.totalViral, 0);
-  s.startTime = numOr(saved.startTime, Date.now());
-  s.lastSeen = numOr(saved.lastSeen, Date.now());
-  return s;
 }
 
 function clampInt(v, fallbackOrMin = 0, max = Infinity) {
@@ -105,12 +45,37 @@ function clampInt(v, fallbackOrMin = 0, max = Infinity) {
   if (!Number.isFinite(n)) n = fallback;
   return Math.max(min, Math.min(max, n));
 }
-function numOr(v, fallback) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+function numOr(v, fallback) { const n = Number(v); return Number.isFinite(n) ? n : fallback; }
+
+function reconcile(saved) {
+  const base = defaultState();
+  if (!saved || typeof saved !== 'object') return base;
+  const s = { ...base, ...saved };
+  s.depts = {};
+  for (const d of DEPARTMENTS) {
+    const sd = saved.depts?.[d.id] || {};
+    s.depts[d.id] = { workers: clampInt(sd.workers, base.depts[d.id].workers), tier: clampInt(sd.tier, 0, DESK_TIERS.length - 1) };
+  }
+  s.decorations = {};
+  for (const d of DECORATIONS) s.decorations[d.id] = clampInt(saved.decorations?.[d.id], 0);
+  s.collection = {};
+  for (const c of ROSTER) if (saved.collection?.[c.id]) s.collection[c.id] = clampInt(saved.collection[c.id], 1);
+  if (Object.keys(s.collection).length === 0) s.collection = { chimpanzini: 1 };
+  s.milestonesHit = { ...(saved.milestonesHit || {}) };
+  s.officeLevel = clampInt(saved.officeLevel, 0, OFFICE_LEVELS.length - 1);
+  s.money = numOr(saved.money, base.money);
+  s.tokens = numOr(saved.tokens, base.tokens);
+  s.followers = numOr(saved.followers, 0);
+  s.lifetimeMoney = numOr(saved.lifetimeMoney, 0);
+  s.totalViral = numOr(saved.totalViral, 0);
+  s.pulls = clampInt(saved.pulls, 0);
+  s.spikes = clampInt(saved.spikes, 0);
+  s.questStep = clampInt(saved.questStep, 0);
+  s.startTime = numOr(saved.startTime, Date.now());
+  s.lastSeen = numOr(saved.lastSeen, Date.now());
+  return s;
 }
 
-// Live game state (mutable singleton).
 export let state = defaultState();
 
 export function loadState() {
@@ -125,93 +90,39 @@ export function loadState() {
     return { state, fresh: true };
   }
 }
-
 export function saveState() {
-  try {
-    state.lastSeen = Date.now();
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    return true;
-  } catch (err) {
-    console.warn('[state] save failed', err);
-    return false;
-  }
+  try { state.lastSeen = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(state)); return true; }
+  catch (err) { console.warn('[state] save failed', err); return false; }
 }
+export function resetState() { state = defaultState(); saveState(); return state; }
+export function exportSave() { return btoa(unescape(encodeURIComponent(JSON.stringify(state)))); }
+export function importSave(code) { state = reconcile(JSON.parse(decodeURIComponent(escape(atob(code.trim()))))); saveState(); return state; }
 
-export function resetState() {
-  state = defaultState();
-  saveState();
-  return state;
-}
-
-export function exportSave() {
-  return btoa(unescape(encodeURIComponent(JSON.stringify(state))));
-}
-
-export function importSave(code) {
-  const parsed = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-  state = reconcile(parsed);
-  saveState();
-  return state;
-}
-
-// --------------------------------------------------------------------------
-//  Cost formulas (pure helpers)
-// --------------------------------------------------------------------------
-
+// --- cost formulas ---------------------------------------------------------
 export function hireCost(deptId) {
   const d = DEPARTMENTS.find((x) => x.id === deptId);
   return Math.floor(d.baseHireCost * Math.pow(d.hireGrowth, state.depts[deptId].workers));
 }
-
 export function deskUpgradeCost(deptId) {
-  const dept = DEPARTMENTS.find((x) => x.id === deptId);
   const tier = state.depts[deptId].tier;
   if (tier >= DESK_TIERS.length - 1) return Infinity;
-  const deptIndex = DEPARTMENTS.indexOf(dept);
-  // Grows steeply per tier; later stages cost a touch more.
-  return Math.floor(140 * Math.pow(11, tier) * (1 + deptIndex * 0.15));
+  const idx = DEPARTMENTS.findIndex((x) => x.id === deptId);
+  return Math.floor(140 * Math.pow(11, tier) * (1 + idx * 0.15));
 }
-
 export function decoCost(id) {
   const d = DECORATIONS.find((x) => x.id === id);
   return Math.floor(d.cost * Math.pow(1.55, state.decorations[id]));
 }
-
-export function upgradeCost(id) {
-  const u = UPGRADES.find((x) => x.id === id);
-  const lvl = state.upgrades[id];
-  if (lvl >= u.max) return Infinity;
-  return Math.floor(u.baseCost * Math.pow(u.growth, lvl));
-}
-
 export function officeUpgradeCost() {
   const next = state.officeLevel + 1;
   if (next >= OFFICE_LEVELS.length) return Infinity;
   return OFFICE_LEVELS[next].cost;
 }
-
-// --------------------------------------------------------------------------
-//  Derived helpers
-// --------------------------------------------------------------------------
-
-export function totalWorkers() {
-  return DEPARTMENTS.reduce((sum, d) => sum + state.depts[d.id].workers, 0);
+export function gachaCoinCost() {
+  return Math.floor(ECON.gachaBaseCoin * Math.pow(ECON.gachaCoinGrowth, state.pulls));
 }
 
-export function deskCount() {
-  // One desk per worker, plus an empty "ready to staff" desk is not modelled;
-  // capacity is measured in desks == workers here.
-  return totalWorkers();
-}
-
-export function capacity() {
-  return OFFICE_LEVELS[state.officeLevel].capacity;
-}
-
-export function atCapacity() {
-  return totalWorkers() >= capacity();
-}
-
-export function ownedProducts() {
-  return PRODUCTS.filter((p) => state.products[p.id]);
-}
+// --- derived ---------------------------------------------------------------
+export function totalWorkers() { return DEPARTMENTS.reduce((s, d) => s + state.depts[d.id].workers, 0); }
+export function capacity() { return OFFICE_LEVELS[state.officeLevel].capacity; }
+export function atCapacity() { return totalWorkers() >= capacity(); }

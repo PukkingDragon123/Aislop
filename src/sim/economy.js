@@ -1,216 +1,118 @@
 // ============================================================================
-//  Economy simulation — the production pipeline
-// ----------------------------------------------------------------------------
-//  Ideas → Raw → Polished → Published → (Marketing) → money + followers.
-//  Each stage's throughput = workers × baseRate × deskTier × efficiency.
-//  Buffers between stages have a cap and apply BACK-PRESSURE, so an
-//  understaffed stage starves everything downstream while upstream buffers
-//  fill — making "balance your workforce" a real, visible decision.
+//  Economy — the digital zoo.
+//  Brainrots ARE the income: each owned character produces coins/sec by rarity
+//  × level. Employees (the office you build) multiply that output, decorations
+//  add morale, followers add an audience bonus, and viral / dopamine spikes
+//  pour fuel on the fire.
 // ============================================================================
 
-import {
-  DEPARTMENTS, DESK_TIERS, DECORATIONS, PRODUCTS, UPGRADES, MILESTONES, ECON,
-  ROSTER, RARITIES,
-} from '../core/config.js';
+import { DEPARTMENTS, DESK_TIERS, DECORATIONS, MILESTONES, ECON, ROSTER_BY_ID, RARITIES } from '../core/config.js';
 import { state } from '../core/state.js';
 import { bus } from '../core/events.js';
 
-// Transient (non-saved) sim state.
 const live = {
-  viralTimer: 0,          // seconds remaining of an active viral spike
-  rates: { money: 0, followers: 0, pieces: 0, hype: 0 }, // smoothed per-second, for HUD
-  bottleneck: null,       // dept id of the current limiting stage
-  trend: null,            // { id, name, rarity, mult, emoji } currently trending
-  trendTimer: 0,
+  viralTimer: 0,
+  rates: { money: 0, followers: 0 },
+  dopamine: 0,        // 0..1 meter
+  dopamineTimer: 0,   // seconds of active spike
 };
 
 export function getViralTimer() { return live.viralTimer; }
 export function getRates() { return live.rates; }
-export function getBottleneck() { return live.bottleneck; }
-export function getTrend() { return live.trend; }
+export function getDopamine() { return { meter: live.dopamine, timer: live.dopamineTimer, ready: live.dopamine >= 1 && live.dopamineTimer <= 0 }; }
+export function isDopamineActive() { return live.dopamineTimer > 0; }
+export function addDopamine(amount) { if (live.dopamineTimer <= 0) live.dopamine = Math.min(1, live.dopamine + amount); }
 
-// Pick a new trending character (called on a timer + once at boot).
-function pickTrend(emit = true) {
-  const c = ROSTER[Math.floor(Math.random() * ROSTER.length)];
-  live.trend = { id: c.id, name: c.name, rarity: c.rarity, mult: RARITIES[c.rarity].trendMult, emoji: c.emoji };
-  live.trendTimer = ECON.trendInterval;
-  if (emit) bus.emit('trend', live.trend);
-}
-export function initTrend() { if (!live.trend) pickTrend(false); }
-
-// --------------------------------------------------------------------------
-//  Aggregate every modifier source into a single multiplier bundle.
-// --------------------------------------------------------------------------
-export function computeModifiers() {
-  const m = {
-    efficiency: 1,                 // scales every stage's rate
-    value: 1,                      // $ per piece
-    buffer: 1,                     // buffer capacity
-    viralChance: ECON.viralBaseChance,
-    followers: 1,                  // follower gain
-    sponsor: 0,                    // passive % of revenue
-  };
-
-  // Upgrades.
-  for (const u of UPGRADES) {
-    const lvl = state.upgrades[u.id];
-    if (lvl > 0) u.apply(lvl, m);
+// Base coins/sec produced by the zoo (before any multipliers).
+export function brainrotIncome() {
+  let sum = 0;
+  for (const id in state.collection) {
+    const c = ROSTER_BY_ID[id];
+    if (c) sum += RARITIES[c.rarity].income * state.collection[id];
   }
+  return sum;
+}
+export function collectionCount() { return Object.keys(state.collection).length; }
 
-  // Decorations → morale → efficiency.
+// Raw employee "power" (drives the income multiplier).
+export function employeeOutput() {
+  let o = 0;
+  for (const d of DEPARTMENTS) {
+    const sd = state.depts[d.id];
+    o += sd.workers * d.baseRate * DESK_TIERS[sd.tier].mult;
+  }
+  return o;
+}
+export function deptPower(id) {
+  const d = DEPARTMENTS.find((x) => x.id === id);
+  const sd = state.depts[id];
+  return sd.workers * d.baseRate * DESK_TIERS[sd.tier].mult;
+}
+
+export function computeModifiers() {
   let morale = 0;
   for (const d of DECORATIONS) morale += state.decorations[d.id] * d.morale;
-  m.efficiency *= 1 + morale;
-  m.morale = morale;
-
-  // Owned products stack revenue + follower multipliers.
-  let rev = 0, fol = 0;
-  for (const p of PRODUCTS) {
-    if (state.products[p.id]) { rev += p.revMult; fol += p.folMult; }
-  }
-  m.productRev = Math.max(1, rev);
-  m.productFol = Math.max(1, fol);
-
-  // Collection: each discovered brainrot character compounds a global multiplier.
-  let collection = 1;
-  for (const c of ROSTER) if (state.discovered[c.id]) collection *= 1 + RARITIES[c.rarity].collectMult;
-  m.collection = collection;
-
-  // Trend: if the currently-trending character is in your collection, big boost.
-  m.trend = (live.trend && state.discovered[live.trend.id]) ? 1 + live.trend.mult : 1;
-  m.trendActive = m.trend > 1;
-
-  // Timed boosts (from watch-ad rewards, gem purchases, mini-games).
-  const now = Date.now();
-  let boost = 1;
-  for (const k in state.boosts) { const b = state.boosts[k]; if (b && b.until > now) boost *= b.mult; }
-  m.boost = boost;
-
+  const m = {
+    moraleMult: 1 + morale,
+    empMult: 1 + employeeOutput() * ECON.empPower,
+    audience: 1 + ECON.audienceBonus * Math.log10(1 + state.followers),
+    viral: live.viralTimer > 0 ? ECON.viralMultiplier : 1,
+    dopamine: live.dopamineTimer > 0 ? ECON.dopamineMultiplier : 1,
+    morale,
+  };
+  m.total = m.empMult * m.moraleMult * m.audience * m.viral * m.dopamine;
   return m;
 }
 
-// Active timed boosts, for the HUD chips.
-export function getActiveBoosts() {
-  const now = Date.now();
-  const out = [];
-  for (const k in state.boosts) {
-    const b = state.boosts[k];
-    if (b && b.until > now) out.push({ name: k, mult: b.mult, remaining: (b.until - now) / 1000 });
-  }
-  return out;
+export function incomePerSec(m = computeModifiers()) {
+  return brainrotIncome() * m.total;
 }
 
-// Capacity (units/sec) of a single stage given current staff + modifiers.
-export function stageCapacity(deptId, m = computeModifiers()) {
-  const d = state.depts[deptId];
-  const def = DEPARTMENTS.find((x) => x.id === deptId);
-  return d.workers * def.baseRate * DESK_TIERS[d.tier].mult * m.efficiency;
-}
-
-// Steady-state pipeline throughput = the slowest stage (the bottleneck).
-export function throughput(m = computeModifiers()) {
-  let min = Infinity, who = null;
-  for (const def of DEPARTMENTS) {
-    const c = stageCapacity(def.id, m);
-    if (c < min) { min = c; who = def.id; }
-  }
-  live.bottleneck = who;
-  return min === Infinity ? 0 : min;
-}
-
-// Per-piece economics at this instant (followers feed back into value).
-function pieceEconomics(m) {
-  const audienceMult = 1 + ECON.audienceBonus * Math.log10(1 + state.followers);
-  const value = ECON.baseValue * m.value * m.productRev * audienceMult * m.collection * m.trend * m.boost;
-  const followers = ECON.baseFollowers * m.followers * m.productFol * m.collection * m.trend * m.boost;
-  return { value, followers };
-}
-
-// --------------------------------------------------------------------------
-//  Main tick — advance the simulation by dt seconds.
 // --------------------------------------------------------------------------
 export function tick(dt) {
   const m = computeModifiers();
-  const bufMax = ECON.baseBuffer * m.buffer;
-  const b = state.buffers;
+  const base = brainrotIncome();
 
-  // Stage 1: Trend Lab generates ideas (no upstream input).
-  const ideaIn = stageCapacity('trends', m) * dt;
-  b.idea = Math.min(bufMax, b.idea + ideaIn);
-
-  // Stages 2-4: consume upstream buffer, limited by downstream space (back-pressure).
-  const flowCreation = move(b, 'idea', 'raw', stageCapacity('creation', m) * dt, bufMax);
-  const flowEditing = move(b, 'raw', 'polished', stageCapacity('editing', m) * dt, bufMax);
-  const flowPublish = move(b, 'polished', 'published', stageCapacity('publishing', m) * dt, bufMax);
-
-  // Stage 5: Marketing consumes published pieces → money + followers.
-  const marketed = Math.min(stageCapacity('marketing', m) * dt, b.published);
-  b.published -= marketed;
-
-  let moneyEarned = 0, followersEarned = 0;
-  let viralNow = false;
-
-  if (marketed > 0) {
-    const econ = pieceEconomics(m);
-
-    // Maybe trigger a viral spike (only while actually publishing).
-    if (live.viralTimer <= 0) {
-      const p = 1 - Math.exp(-m.viralChance * dt);
-      if (Math.random() < p) {
-        live.viralTimer = ECON.viralDuration;
-        state.totalViral++;
-        viralNow = true;
-        bus.emit('viral', { multiplier: ECON.viralMultiplier });
-      }
+  // Viral roll (only while the zoo is actually earning).
+  if (base > 0 && live.viralTimer <= 0) {
+    if (Math.random() < 1 - Math.exp(-ECON.viralBaseChance * dt)) {
+      live.viralTimer = ECON.viralDuration;
+      state.totalViral++;
+      bus.emit('viral', { multiplier: ECON.viralMultiplier });
     }
-    const viralFactor = live.viralTimer > 0 ? ECON.viralMultiplier : 1;
+  }
+  if (live.viralTimer > 0) live.viralTimer = Math.max(0, live.viralTimer - dt);
+  if (live.dopamineTimer > 0) live.dopamineTimer = Math.max(0, live.dopamineTimer - dt);
 
-    moneyEarned = marketed * econ.value * viralFactor;
-    followersEarned = marketed * econ.followers * viralFactor;
-    moneyEarned *= 1 + m.sponsor; // sponsorship deals top up revenue
+  const coins = base * m.total * dt;
+  const followers = base * ECON.baseFollowers * m.audience * (m.viral > 1 ? 3 : 1) * dt;
+
+  state.money += coins;
+  state.followers += followers;
+  state.lifetimeMoney += coins;
+
+  // Dopamine meter trickles up while earning (faster when busy); pauses mid-spike.
+  if (live.dopamineTimer <= 0 && base > 0) {
+    live.dopamine = Math.min(1, live.dopamine + dt / 70);
   }
 
-  if (live.viralTimer > 0) live.viralTimer = Math.max(0, live.viralTimer - dt);
-
-  // Rotate the trending character on a timer.
-  live.trendTimer -= dt;
-  if (live.trendTimer <= 0) pickTrend();
-
-  // Commit.
-  const hypeEarned = marketed * ECON.hypePerPiece;
-  state.money += moneyEarned;
-  state.followers += followersEarned;
-  state.hype += hypeEarned;
-  state.lifetimeMoney += moneyEarned;
-  state.lifetimePublished += marketed;
-
-  // Smoothed rates for the HUD (EMA).
   const k = Math.min(1, dt * 2.5);
-  live.rates.money += (moneyEarned / dt - live.rates.money) * k;
-  live.rates.followers += (followersEarned / dt - live.rates.followers) * k;
-  live.rates.pieces += (marketed / dt - live.rates.pieces) * k;
-  live.rates.hype += (hypeEarned / dt - live.rates.hype) * k;
-  throughput(m); // refresh bottleneck id
+  live.rates.money += (coins / dt - live.rates.money) * k;
+  live.rates.followers += (followers / dt - live.rates.followers) * k;
 
   checkMilestones();
-
-  if (marketed > 0) {
-    bus.emit('published', {
-      pieces: marketed, money: moneyEarned, followers: followersEarned,
-      viral: live.viralTimer > 0,
-    });
-  }
-
-  return { moneyEarned, followersEarned, marketed, flowCreation, flowEditing, flowPublish, viralNow };
+  if (coins > 0) bus.emit('earn', { coins, viral: m.viral > 1 || m.dopamine > 1 });
+  return { coins, followers };
 }
 
-// Move up to `amount` units from buffer `from` into `to`, capped by `to` space.
-function move(b, from, to, amount, bufMax) {
-  const space = bufMax - b[to];
-  const moved = Math.max(0, Math.min(amount, b[from], space));
-  b[from] -= moved;
-  b[to] += moved;
-  return moved;
+// Player taps the charged meter → euphoric overdrive.
+export function triggerDopamine() {
+  if (live.dopamine < 1 || live.dopamineTimer > 0) return false;
+  live.dopamine = 0;
+  live.dopamineTimer = ECON.dopamineDuration;
+  state.spikes++;
+  bus.emit('dopamine', { multiplier: ECON.dopamineMultiplier, duration: ECON.dopamineDuration });
+  return true;
 }
 
 function checkMilestones() {
@@ -222,30 +124,19 @@ function checkMilestones() {
   }
 }
 
-// --------------------------------------------------------------------------
-//  Offline progress — credit a fraction of steady-state throughput for the
-//  time the tab was closed (capped). No viral spikes while away.
-// --------------------------------------------------------------------------
 export function computeOffline(elapsedSec) {
   const seconds = Math.min(elapsedSec, ECON.offlineCap);
-  if (seconds < 30) return null; // ignore tiny gaps
-
+  if (seconds < 30) return null;
   const m = computeModifiers();
-  const tp = throughput(m); // pieces/sec at the bottleneck
-  if (tp <= 0) return null;
-
-  const econ = pieceEconomics(m);
-  const pieces = tp * seconds * ECON.offlineRate;
-  const money = pieces * econ.value * (1 + m.sponsor);
-  const followers = pieces * econ.followers;
-  const hype = pieces * ECON.hypePerPiece;
-
-  state.money += money;
+  const base = brainrotIncome();
+  if (base <= 0) return null;
+  // Offline ignores viral + dopamine.
+  const rate = base * m.empMult * m.moraleMult * m.audience * ECON.offlineRate;
+  const coins = rate * seconds;
+  const followers = base * ECON.baseFollowers * m.audience * ECON.offlineRate * seconds;
+  state.money += coins;
   state.followers += followers;
-  state.hype += hype;
-  state.lifetimeMoney += money;
-  state.lifetimePublished += pieces;
+  state.lifetimeMoney += coins;
   checkMilestones();
-
-  return { seconds, money, followers, pieces, hype };
+  return { seconds, money: coins, followers };
 }

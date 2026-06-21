@@ -4,6 +4,7 @@
 // ============================================================================
 
 import * as THREE from '../vendor/three.module.js';
+import { getShake } from './effects.js';
 
 let renderer, scene, camera;
 let canvas;
@@ -180,5 +181,13 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.1);
   const t = clock.elapsedTime;
   for (const cb of renderCallbacks) cb(dt, t);
-  renderer.render(scene, camera);
+  // Apply a transient camera shake for dopamine/viral hits, then restore.
+  const sh = getShake();
+  if (sh) {
+    camera.position.x += sh.x; camera.position.y += sh.y;
+    renderer.render(scene, camera);
+    camera.position.x -= sh.x; camera.position.y -= sh.y;
+  } else {
+    renderer.render(scene, camera);
+  }
 }

@@ -218,3 +218,21 @@ export function renderMemeCanvas(size, meme) {
   drawMeme(c, meme, 0);
   return c;
 }
+
+/**
+ * Best available art for a roster character: a real image (e.g. a Higgsfield
+ * render set on char.img) when present, otherwise charming procedural art.
+ * Returns a DOM element sized to `size`px square.
+ */
+export function charArt(char, size) {
+  if (char && char.img) {
+    const im = document.createElement('img');
+    im.src = char.img; im.alt = char.name; im.loading = 'lazy';
+    im.width = size; im.height = size;
+    im.style.width = '100%'; im.style.height = '100%'; im.style.objectFit = 'cover'; im.style.display = 'block';
+    return im;
+  }
+  const cv = renderMemeCanvas(size, memeFromChar(char));
+  cv.style.width = '100%'; cv.style.height = '100%'; cv.style.display = 'block';
+  return cv;
+}

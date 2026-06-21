@@ -35,10 +35,10 @@ export function showMenu({ fresh, onPlay, onTutorial, onReset }) {
 
   const card = el('div', { class: 'menu-card' }, [
     el('div', { class: 'menu-logo' }, [
-      el('span', { class: 'menu-logo-bot', text: '🤖' }),
+      el('span', { class: 'menu-logo-bot', text: '🦠' }),
     ]),
-    el('h1', { class: 'menu-title', html: 'AI&nbsp;SLOP<span>.CO</span>' }),
-    el('p', { class: 'menu-tag', text: 'Build the world\'s largest AI brainrot empire.' }),
+    el('h1', { class: 'menu-title', html: 'BRAINROT&nbsp;<span>ZOO</span>' }),
+    el('p', { class: 'menu-tag', text: 'Generate brainrots. Run the zoo. Get rich. Go feral.' }),
     statsRow,
     el('button', { class: 'menu-play', onclick: () => close(onPlay) }, [
       el('span', { class: 'menu-play-ico', text: fresh ? '🚀' : '▶' }),
@@ -72,5 +72,5 @@ function menuStat(icon, value, label) {
 }
 
 function countDiscovered() {
-  let n = 0; for (const k in state.discovered) if (state.discovered[k]) n++; return n;
+  return Object.keys(state.collection).length;
 }

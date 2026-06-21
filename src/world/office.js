@@ -7,14 +7,14 @@
 // ============================================================================
 
 import * as THREE from '../vendor/three.module.js';
-import { DEPARTMENTS, DECORATIONS, PRODUCTS, OFFICE_LEVELS, PALETTE, ROSTER_BY_ID } from '../core/config.js';
+import { DEPARTMENTS, DECORATIONS, OFFICE_LEVELS, PALETTE, ROSTER_BY_ID, RARITIES } from '../core/config.js';
 import { state } from '../core/state.js';
 import { bus } from '../core/events.js';
 import { buildDesk, buildDecoration } from './furniture.js';
 import { Worker } from './worker.js';
 import { BigScreen } from './screen.js';
 import { setCameraTarget, fitView } from './scene.js';
-import { getTrend } from '../sim/economy.js';
+import { throwProjectile } from './effects.js';
 import { randomMeme, memeFromChar } from '../sim/brainrot.js';
 
 const TILE = 2.2;
@@ -301,6 +301,11 @@ function update(dt, t) {
     if (u.blinkers) for (const b of u.blinkers) b.material.emissiveIntensity = Math.random() < 0.05 ? 0.1 : 0.8;
   }
 
+  // CHAOS — sloppy employees randomly get knocked flat, or square up and start
+  // flinging office supplies at each other.
+  chaosTimer -= dt;
+  if (chaosTimer <= 0) { chaosTimer = 5 + Math.random() * 7; triggerChaos(); }
+
   // The big screen alternates between a live stats dashboard and full-screen
   // brainrot memes, so the office always has something animated playing.
   animT = t;
@@ -317,7 +322,7 @@ function update(dt, t) {
 }
 
 const screenData = { rates: { money: 0 }, viral: false };
-let screenMode = 'stats', screenModeTimer = 8, currentMeme = null, animT = 0;
+let screenMode = 'stats', screenModeTimer = 8, currentMeme = null, animT = 0, chaosTimer = 5;
 
 // Pushed in from the main loop each frame.
 export function setScreenData(rates, viral) {
@@ -325,38 +330,50 @@ export function setScreenData(rates, viral) {
   screenData.viral = viral;
 }
 
+function flatWorkers() { const a = []; for (const id in workers) for (const w of workers[id]) a.push(w); return a; }
+
+function triggerChaos() {
+  const all = flatWorkers();
+  if (!all.length) return;
+  if (all.length >= 2 && Math.random() < 0.6) {
+    const a = all[(Math.random() * all.length) | 0];
+    let b = all[(Math.random() * all.length) | 0], guard = 0;
+    while (b === a && guard++ < 6) b = all[(Math.random() * all.length) | 0];
+    if (a === b) return;
+    a.fight(b.group.position, 2.4); b.fight(a.group.position, 2.4);
+    const pa = { x: a.group.position.x, y: 1.1, z: a.group.position.z };
+    const pb = { x: b.group.position.x, y: 1.1, z: b.group.position.z };
+    setTimeout(() => throwProjectile(pa, b.group.position), 300);
+    setTimeout(() => throwProjectile(pb, a.group.position), 850);
+    setTimeout(() => { if (Math.random() < 0.5) a.ragdoll(1); else b.ragdoll(1); }, 2200);
+  } else {
+    all[(Math.random() * all.length) | 0].ragdoll(1);
+  }
+}
+
 function pickScreenMeme() {
-  const tr = getTrend();
-  if (tr && Math.random() < 0.6) { const c = ROSTER_BY_ID[tr.id]; if (c) return memeFromChar(c); }
+  const owned = Object.keys(state.collection);
+  if (owned.length && Math.random() < 0.7) {
+    const c = ROSTER_BY_ID[owned[(Math.random() * owned.length) | 0]];
+    if (c) return memeFromChar(c);
+  }
   return randomMeme();
 }
 
 function drawScreen() {
-  // Viral takeover always wins.
   if (screenData.viral) {
     bigScreen.draw({ viral: true, followers: state.followers, perSec: screenData.rates.money, money: state.money, products: [] });
     return;
   }
-  if (screenMode === 'meme' && currentMeme) {
-    bigScreen.drawMeme(currentMeme, animT);
-    return;
-  }
-  // Owned products become trending bars (weighted by their revenue multiplier).
-  const items = PRODUCTS.filter((p) => state.products[p.id]).map((p) => ({
-    name: p.name, icon: p.icon, color: '#' + toCss(p), v: p.revMult,
-  }));
+  if (screenMode === 'meme' && currentMeme) { bigScreen.drawMeme(currentMeme, animT); return; }
+  // "Trending": your top-earning brainrots.
+  const items = Object.keys(state.collection).map((id) => {
+    const c = ROSTER_BY_ID[id], lvl = state.collection[id];
+    return { name: c.name, icon: c.emoji[0], color: RARITIES[c.rarity].color, v: RARITIES[c.rarity].income * lvl };
+  }).sort((a, b) => b.v - a.v).slice(0, 6);
   tickerIndex = (tickerIndex + 1) % (TICKERS.length * 30);
   bigScreen.draw({
-    followers: state.followers,
-    perSec: screenData.rates.money,
-    money: state.money,
-    products: items,
-    viral: false,
-    ticker: TICKERS[Math.floor(tickerIndex / 30) % TICKERS.length],
+    followers: state.followers, perSec: screenData.rates.money, money: state.money,
+    products: items, viral: false, ticker: TICKERS[Math.floor(tickerIndex / 30) % TICKERS.length],
   });
-}
-
-function toCss(p) {
-  const map = { videos: 'ff6f91', songs: '7bdff2', ads: 'ffd166', websites: '9bf6a0', study: 'c3a6ff', games: 'ff9f45', apps: '66f2ff' };
-  return map[p.id] || '6cc6ff';
 }
