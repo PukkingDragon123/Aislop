@@ -45,6 +45,13 @@ export function initHud(container) {
   ]);
   const sub = el('div', { class: 'hud-sub' }, [refs.level, refs.quest]);
 
+  // Prominent income/sec readout, centred up top.
+  refs.incomeTop = el('div', { class: 'income-top' }, [
+    el('span', { class: 'income-ico', text: '🪙' }),
+    el('span', { class: 'income-val' }),
+    el('span', { class: 'income-unit', text: '/sec' }),
+  ]);
+
   const bar = el('div', { class: 'hud' }, [
     el('div', { class: 'hud-brand' }, [
       el('div', { class: 'hud-logo', text: '🦠' }),
@@ -53,7 +60,7 @@ export function initHud(container) {
     el('div', { class: 'hud-stats' }, [coinStat.box, tokenStat.box, folStat.box]),
     refs.viral,
   ]);
-  container.append(bar, sub);
+  container.append(bar, sub, refs.incomeTop);
   update();
 }
 
@@ -71,6 +78,7 @@ export function update() {
   const r = getRates();
   refs.coins.textContent = money(state.money);
   refs.coinsRate.textContent = rate(r.money);
+  refs.incomeTop.querySelector('.income-val').textContent = money(r.money);
   refs.tokens.textContent = fmt(state.tokens);
   refs.fol.textContent = fmt(state.followers);
   refs.folRate.textContent = rate(r.followers, '');

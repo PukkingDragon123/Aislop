@@ -23,7 +23,6 @@ import { showMenu } from './ui/menu.js';
 import { startTutorial, orcaTankOffer } from './ui/dialogue.js';
 
 let office, pendingOffline = null, isFresh = false, playing = false;
-const boot = document.getElementById('boot');
 
 function start() {
   initScene(document.getElementById('scene'));
@@ -44,7 +43,6 @@ function start() {
 
   wireEvents();
   startLoop();
-  if (boot) { boot.classList.add('hide'); setTimeout(() => boot.remove(), 600); }
 
   showMenu({ fresh, onPlay: startGame, onTutorial: () => startTutorial(), onReset: confirmReset });
 }

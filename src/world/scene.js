@@ -39,8 +39,8 @@ export function initScene(canvasEl) {
   renderer.toneMappingExposure = 1.22;
 
   scene = new THREE.Scene();
-  scene.background = makeSky();
-  scene.fog = new THREE.Fog(0xc9b6ff, 78, 145);
+  scene.background = new THREE.Color(0x9bd6ff); // flat, bright sky — no gradient
+  scene.fog = new THREE.Fog(0x9bd6ff, 85, 150);
 
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 240);
 

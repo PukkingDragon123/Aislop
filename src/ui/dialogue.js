@@ -47,7 +47,8 @@ export function startTutorial(onDone) {
     { npc: '🦠', name: 'Bloop', text: 'Smash the 🎰 button (bottom-left) to GENERATE brainrots. They\'re your exhibits — they print coins 24/7. Duplicates fuse and level up!' },
     { npc: '🦠', name: 'Bloop', text: 'Hire employees from the bottom bar — they MULTIPLY all that income. Decorate for morale, expand for room.' },
     { npc: '🦠', name: 'Bloop', text: 'Tokens 🎟️ pay for the gacha. You earn them from QUESTS — tap the quest chip up top to see your goal.' },
-    { npc: '🦠', name: 'Bloop', text: 'Pro tip: TAP an employee to bully them, and buy chaos props like the 🦖 and 🧨. Now go feral! 🎉' },
+    { npc: '🦠', name: 'Bloop', text: 'TAP the office to make employees WORK for instant coins — or buy the 🤖 Auto-Manager upgrade to automate it!' },
+    { npc: '🦠', name: 'Bloop', text: 'Also buy chaos props (🦖 🧨) and tap them for mayhem. Now go feral! 🎉' },
   ], onDone);
 }
 

@@ -228,6 +228,9 @@ export class Worker {
     if (this.stateTimer <= 0) { this.state = 'work'; this.rot = 0; }
   }
 
+  // Quick "got told to work" pop — stretch up then settle.
+  workPop() { if (this.state === 'work' || this.state === 'walk') { this.squash = -0.3; this.bob = 0.24; } }
+
   dispose() { this.group.removeFromParent(); }
 }
 

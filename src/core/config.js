@@ -28,16 +28,16 @@ export const DEPARTMENTS = [
   { id: 'creation',   name: 'Creation Bay', role: 'Content Creator', icon: '✨', color: 0xff6f91, uiColor: '#ff6f91', unlockLevel: 0,
     desc: 'Creators churn out raw AI content all day.', baseRate: 0.7, baseHireCost: 24, hireGrowth: 1.15,
     titles: ['Content Creator', 'Prompt Engineer', 'Game Developer', 'Music Producer', 'Website Designer'] },
-  { id: 'trends',     name: 'Trend Lab',    role: 'Trend Hunter', icon: '🔮', color: 0xffb347, uiColor: '#ffae42', unlockLevel: 2,
+  { id: 'trends',     name: 'Trend Lab',    role: 'Trend Hunter', icon: '🔮', color: 0xffb347, uiColor: '#ffae42', unlockLevel: 1,
     desc: 'Scouts spot what the feed wants next.', baseRate: 0.6, baseHireCost: 18, hireGrowth: 1.15,
     titles: ['Trend Hunter', 'Trend Scout', 'Culture Analyst'] },
-  { id: 'editing',    name: 'Edit Suite',   role: 'Editor', icon: '🎬', color: 0x7bdff2, uiColor: '#56cfe1', unlockLevel: 4,
+  { id: 'editing',    name: 'Edit Suite',   role: 'Editor', icon: '🎬', color: 0x7bdff2, uiColor: '#56cfe1', unlockLevel: 3,
     desc: 'Editors polish slop into something watchable.', baseRate: 0.65, baseHireCost: 30, hireGrowth: 1.15,
     titles: ['Video Editor', 'Audio Engineer', 'QA Specialist'] },
-  { id: 'publishing', name: 'Upload Hub',   role: 'Publisher', icon: '🚀', color: 0x9bf6a0, uiColor: '#74d680', unlockLevel: 7,
+  { id: 'publishing', name: 'Upload Hub',   role: 'Publisher', icon: '🚀', color: 0x9bf6a0, uiColor: '#74d680', unlockLevel: 5,
     desc: 'The upload team ships to every platform at once.', baseRate: 0.6, baseHireCost: 38, hireGrowth: 1.15,
     titles: ['Upload Specialist', 'Platform Manager', 'Release Coordinator'] },
-  { id: 'marketing',  name: 'Growth Floor', role: 'Marketer', icon: '📣', color: 0xc3a6ff, uiColor: '#b18cff', unlockLevel: 11,
+  { id: 'marketing',  name: 'Growth Floor', role: 'Marketer', icon: '📣', color: 0xc3a6ff, uiColor: '#b18cff', unlockLevel: 8,
     desc: 'Marketers push content into millions of feeds.', baseRate: 0.8, baseHireCost: 46, hireGrowth: 1.15,
     titles: ['Marketing Specialist', 'Growth Hacker', 'Community Manager'] },
 ];
@@ -50,6 +50,8 @@ export const DECORATIONS = [
   { id: 'coffee',   name: 'Coffee Machine',  icon: '☕', cost: 250,     morale: 0.05, desc: '+5% income. The true engine of the company.' },
   { id: 'food',     name: 'Snack Bar',       icon: '🍔', cost: 700,     morale: 0.07, desc: '+7% income. Employees wander over for a bite.' },
   { id: 'vending',  name: 'Vending Machine', icon: '🥤', cost: 600,     morale: 0.06, desc: '+6% income. Snacks fuel the slop.' },
+  { id: 'printer',  name: 'Cash Printer',    icon: '🖨️', cost: 1200,    morale: 0.0,  coinPerSec: 5, desc: 'Prints flat coins/sec — scales with your company level.' },
+  { id: 'billboard',name: 'Hype Billboard',  icon: '📢', cost: 5000,    morale: 0.03, folMult: 0.25, desc: '+25% follower gain (and a little morale).' },
   { id: 'whip',     name: 'Bully-Bot 3000',  icon: '🥊', cost: 1800,    morale: 0.05, chaos: true, desc: 'Whips nearby employees into shape. Tap it to bully them.' },
   { id: 'sofa',     name: 'Lounge Sofa',     icon: '🛋️', cost: 1400,    morale: 0.08, desc: '+8% income. A place to "ideate".' },
   { id: 'arcade',   name: 'Gaming Corner',   icon: '🕹️', cost: 4500,    morale: 0.11, desc: '+11% income. Definitely team-building.' },
@@ -131,16 +133,18 @@ export const ECON = {
   offlineRate: 0.5,       // offline earns 50% of online rate
   saveInterval: 5,        // seconds between autosaves
   // Gacha ("generate brainrot") — costs coins + tokens.
-  gachaBaseCoin: 120,     // coin cost of the first pull
-  gachaCoinGrowth: 1.12,  // coin cost growth per pull
+  gachaBaseCoin: 50,      // coin cost of the first pull (cheaper = faster progress)
+  gachaCoinGrowth: 1.10,  // coin cost growth per pull
   gachaTokenCost: 1,      // tokens per single pull
   gachaMultiPulls: 10,    // pulls in a multi
   gachaMultiTokenCost: 9, // tokens for a multi (1 free vs 10 singles)
-  // Company Level (XP = lifetime coins). Each level: +levelIncomeBonus income,
-  // and some levels unlock departments / upgrades.
-  levelBaseXp: 200,       // coins to clear level 1
-  levelGrowth: 1.5,       // XP requirement growth per level
-  levelIncomeBonus: 0.03, // +3% global income per company level
+  // Manual "click to work" — like cookie clicker. Auto-Manager upgrade automates it.
+  clickBase: 6,           // flat coins per click
+  clickIncomeFraction: 0.4, // + this fraction of current income/sec per click
+  // Company Level (XP = lifetime coins). Smaller steps = less waiting.
+  levelBaseXp: 120,       // coins to clear level 1
+  levelGrowth: 1.42,      // XP requirement growth per level
+  levelIncomeBonus: 0.04, // +4% global income per company level
 };
 
 // ----------------------------------------------------------------------------
@@ -148,7 +152,9 @@ export const ECON = {
 //  company level. `apply(level, e)` mutates the shared effects bundle.
 // ----------------------------------------------------------------------------
 export const UPGRADES = [
-  { id: 'gpu',       name: 'Better GPUs',       icon: '🖥️', unlockLevel: 0,  baseCost: 500,    growth: 1.8, max: 50, desc: '+12% brainrot income per level.',  apply: (l, e) => { e.income *= 1 + 0.12 * l; } },
+  { id: 'clickpower',name: 'Click Power',       icon: '👆', unlockLevel: 0,  baseCost: 80,     growth: 1.55, max: 80, desc: '+60% coins per click per level.',  apply: (l, e) => { e.clickPower *= 1 + 0.6 * l; } },
+  { id: 'autoclick', name: 'Auto-Manager',      icon: '🤖', unlockLevel: 1,  baseCost: 1200,   growth: 1.85, max: 40, desc: 'Auto-clicks +1/sec per level — idles for you!', apply: (l, e) => { e.autoClick += l; } },
+  { id: 'gpu',       name: 'Better GPUs',       icon: '🖥️', unlockLevel: 0,  baseCost: 300,    growth: 1.7, max: 60, desc: '+12% brainrot income per level.',  apply: (l, e) => { e.income *= 1 + 0.12 * l; } },
   { id: 'training',  name: 'Employee Training', icon: '🎓', unlockLevel: 0,  baseCost: 800,    growth: 1.85, max: 50, desc: '+10% employee multiplier per level.', apply: (l, e) => { e.emp *= 1 + 0.10 * l; } },
   { id: 'cooling',   name: 'Liquid Cooling',    icon: '❄️', unlockLevel: 3,  baseCost: 4000,   growth: 1.9, max: 40, desc: '+15% morale effectiveness per level.', apply: (l, e) => { e.morale *= 1 + 0.15 * l; } },
   { id: 'algo',      name: 'Algorithm Hacking', icon: '📈', unlockLevel: 4,  baseCost: 12000,  growth: 2.0, max: 40, desc: '+20% follower gain per level.',     apply: (l, e) => { e.followers *= 1 + 0.20 * l; } },
@@ -156,6 +162,7 @@ export const UPGRADES = [
   { id: 'luck',      name: 'Lucky Rolls',       icon: '🍀', unlockLevel: 8,  baseCost: 200000, growth: 2.2, max: 20, desc: 'Better gacha rarity odds (+ luck/level).', apply: (l, e) => { e.luck += 0.06 * l; } },
   { id: 'servers',   name: 'Offline Servers',   icon: '☁️', unlockLevel: 5,  baseCost: 40000,  growth: 2.0, max: 20, desc: '+25% offline earnings per level.',  apply: (l, e) => { e.offline *= 1 + 0.25 * l; } },
   { id: 'recruiter', name: 'AI Recruiter',      icon: '🧑‍💼', unlockLevel: 10, baseCost: 500000, growth: 2.3, max: 15, desc: '+1 token from every quest per level.', apply: (l, e) => { e.questTokens += l; } },
+  { id: 'tycoon',    name: 'Tycoon Tactics',    icon: '💼', unlockLevel: 13, baseCost: 5e6,    growth: 2.4, max: 30, desc: '+30% brainrot income per level (big late boost).', apply: (l, e) => { e.income *= 1 + 0.30 * l; } },
 ];
 
 // ----------------------------------------------------------------------------
@@ -183,7 +190,7 @@ export const ACHIEVEMENTS = [
   { id: 'viral100',  icon: '💥', name: 'Algorithm Darling',desc: 'Go viral 100 times',           stat: 'viral',    target: 100,    reward: { tokens: 20 } },
   { id: 'lvl10',     icon: '🎖️', name: 'Veteran CEO',      desc: 'Reach company Level 10',       stat: 'level',    target: 10,     reward: { tokens: 8 } },
   { id: 'lvl25',     icon: '👑', name: 'Slop Mogul',       desc: 'Reach company Level 25',       stat: 'level',    target: 25,     reward: { tokens: 25 } },
-  { id: 'bully25',   icon: '🥊', name: 'HR Nightmare',     desc: 'Bully employees 25 times',     stat: 'bullies',  target: 25,     reward: { tokens: 5 } },
+  { id: 'bully25',   icon: '👆', name: 'Micromanager',     desc: 'Click to work 100 times',      stat: 'bullies',  target: 100,    reward: { tokens: 5 } },
   { id: 'office',    icon: '🌆', name: 'Mega-Campus',      desc: 'Reach the AI Mega-Campus',     stat: 'office',   target: 5,      reward: { tokens: 30 } },
 ];
 

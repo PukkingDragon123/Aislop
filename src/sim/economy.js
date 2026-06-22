@@ -41,9 +41,21 @@ function recomputeLevel() {
 
 // --- upgrade effects -------------------------------------------------------
 export function getUpgradeEffects() {
-  const e = { income: 1, emp: 1, morale: 1, followers: 1, viralChance: 0, offline: 1, luck: 0, questTokens: 0 };
+  const e = { income: 1, emp: 1, morale: 1, followers: 1, viralChance: 0, offline: 1, luck: 0, questTokens: 0, clickPower: 1, autoClick: 0 };
   for (const u of UPGRADES) { const l = state.upgrades[u.id] || 0; if (l > 0) u.apply(l, e); }
   return e;
+}
+
+// Flat coins/sec from functional decorations (scales with company level).
+function decoFlatCoins() {
+  let c = 0;
+  for (const d of DECORATIONS) if (d.coinPerSec) c += d.coinPerSec * state.decorations[d.id];
+  return c * (1 + live.level * 0.5);
+}
+function decoFollowerMult() {
+  let m = 1;
+  for (const d of DECORATIONS) if (d.folMult) m += d.folMult * state.decorations[d.id];
+  return m;
 }
 
 // --- zoo income ------------------------------------------------------------
@@ -78,7 +90,7 @@ export function computeModifiers() {
     moraleMult: 1 + morale * e.morale,
     audience: 1 + ECON.audienceBonus * Math.log10(1 + state.followers),
     viral: live.viralTimer > 0 ? ECON.viralMultiplier : 1,
-    followersMult: e.followers,
+    followersMult: e.followers * decoFollowerMult(),
     viralChance: ECON.viralBaseChance + e.viralChance,
     offlineMult: e.offline,
     luck: e.luck,
@@ -90,6 +102,18 @@ export function computeModifiers() {
 }
 
 export function incomePerSec(m = computeModifiers()) { return brainrotIncome() * m.total; }
+
+// Cookie-clicker style manual click ("tell them to work").
+export function clickValue(m = computeModifiers()) {
+  return (ECON.clickBase + incomePerSec(m) * ECON.clickIncomeFraction) * m.effects.clickPower;
+}
+export function click() {
+  const v = clickValue();
+  state.money += v; state.lifetimeMoney += v;
+  state.bullies = (state.bullies || 0) + 1; // also the "click 100 times" counter
+  recomputeLevel();
+  return v;
+}
 
 export function tick(dt) {
   const m = computeModifiers();
@@ -103,7 +127,8 @@ export function tick(dt) {
   }
   if (live.viralTimer > 0) live.viralTimer = Math.max(0, live.viralTimer - dt);
 
-  const coins = base * m.total * dt;
+  const autoCoins = m.effects.autoClick > 0 ? clickValue(m) * m.effects.autoClick * dt : 0;
+  const coins = base * m.total * dt + autoCoins + decoFlatCoins() * dt;
   const followers = base * ECON.baseFollowers * m.audience * m.followersMult * (m.viral > 1 ? 3 : 1) * dt;
 
   state.money += coins;

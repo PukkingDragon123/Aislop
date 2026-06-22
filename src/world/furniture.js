@@ -273,6 +273,20 @@ export function buildDecoration(id) {
       g.userData.spark = spark; g.add(spark);
       break;
     }
+    case 'printer': {
+      g.add(at(box(0.8, 0.5, 0.6, 0xdfe3ec, { rough: 0.5 }), 0, 0.45, 0));
+      g.add(at(box(0.72, 0.12, 0.52, 0x2b2f36), 0, 0.74, 0));
+      const paper = at(box(0.5, 0.4, 0.02, 0xffffff), 0, 0.96, 0.2); paper.rotation.x = -0.3; g.add(paper);
+      g.add(at(box(0.42, 0.22, 0.01, 0x16c172, { emissive: 0x16c172, ei: 0.4 }), 0, 1.0, 0.23));
+      break;
+    }
+    case 'billboard': {
+      g.add(at(cyl(0.09, 0.11, 1.6, 0x6b7280, { metal: 0.3 }), 0, 0.8, 0));
+      g.add(at(box(1.5, 0.95, 0.1, 0x1b2138), 0, 1.75, 0));
+      const sign = at(box(1.3, 0.75, 0.02, 0xff5db1, { emissive: 0xff5db1, ei: 0.55, noShadow: true }), 0, 1.75, 0.06); g.add(sign);
+      g.userData.pulse = sign;
+      break;
+    }
     default:
       g.add(at(box(0.6, 0.6, 0.6, 0xcccccc), 0, 0.3, 0));
   }

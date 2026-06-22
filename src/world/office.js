@@ -14,9 +14,10 @@ import { buildDesk, buildDecoration } from './furniture.js';
 import { Worker } from './worker.js';
 import { BigScreen } from './screen.js';
 import { setCameraTarget, fitView, getCamera, getRenderer } from './scene.js';
-import { throwProjectile, confettiBurst, screenShake } from './effects.js';
-import { companyLevel } from '../sim/economy.js';
+import { throwProjectile, confettiBurst, screenShake, floatingText } from './effects.js';
+import { companyLevel, click as workClick } from '../sim/economy.js';
 import { randomMeme, memeFromChar, renderMemeCanvas } from '../sim/brainrot.js';
+import { money } from '../core/format.js';
 
 const TILE = 2.2;
 const SIDE_MARGIN = 1.6;   // gap from side walls
@@ -438,22 +439,31 @@ function setupTap() {
     handleTap(e);
   });
 }
+const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const _pt = new THREE.Vector3();
 function handleTap(e) {
   const dom = getRenderer().domElement, r = dom.getBoundingClientRect();
   ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
   ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
   raycaster.setFromCamera(ndc, getCamera());
-  const targets = [];
-  for (const id in workers) for (const w of workers[id]) targets.push(w.body);
-  for (const p of chaosProps) targets.push(p.mesh);
-  const hits = raycaster.intersectObjects(targets, true);
-  if (!hits.length) return;
-  let o = hits[0].object;
-  while (o) {
-    if (o.userData && o.userData.worker) { o.userData.worker.ragdoll(); state.bullies = (state.bullies || 0) + 1; confettiBurst(new THREE.Vector3(o.parent.position.x, 1.5, o.parent.position.z), 30, 0.8); screenShake(0.5); return; }
-    if (o.userData && o.userData.chaosId) { triggerProp({ mesh: o, id: o.userData.chaosId }); return; }
-    o = o.parent;
+
+  // Chaos props detonate when tapped.
+  const propHits = raycaster.intersectObjects(chaosProps.map((p) => p.mesh), true);
+  if (propHits.length) {
+    let o = propHits[0].object;
+    while (o) { if (o.userData && o.userData.chaosId) { triggerProp({ mesh: o, id: o.userData.chaosId }); return; } o = o.parent; }
   }
+
+  // Otherwise: a "click to work" — pay out a click, pop the tapped employee.
+  const coins = workClick();
+  const wHits = raycaster.intersectObjects((() => { const a = []; for (const id in workers) for (const w of workers[id]) a.push(w.body); return a; })(), true);
+  let fx = 0, fz = 0;
+  if (wHits.length) {
+    let o = wHits[0].object; while (o && !(o.userData && o.userData.worker)) o = o.parent;
+    if (o && o.userData.worker) { o.userData.worker.workPop(); fx = o.parent.position.x; fz = o.parent.position.z; }
+  } else if (raycaster.ray.intersectPlane(_plane, _pt)) { fx = _pt.x; fz = _pt.z; }
+  floatingText(new THREE.Vector3(fx, 1.4, fz), '+' + money(coins), '#16a34a');
+  if (Math.random() < 0.3) confettiBurst(new THREE.Vector3(fx, 1.3, fz), 14, 0.6);
 }
 
 function pickScreenMeme() {

@@ -34,6 +34,9 @@ No `npm install` — Three.js is vendored in `src/vendor/`.
 - **🎰 Generate Brainrot** (the pink button, bottom-left): spend **tokens 🎟️ + coins 🪙**
   to pull a random brainrot. Rarer = more income. **Duplicates fuse** — they level
   up the one you own and earn more. Pull ×1 or ×10 and enjoy the rarity reveal.
+- **👆 Click to work:** tap the office (or your employees) for an instant coin
+  payout — they pop and get to work. Buy the **🤖 Auto-Manager** upgrade to
+  automate the clicking so it idles for you.
 - **🎟️ Tokens** come from **quests** — tap the quest chip up top to see your goal.
   Quests guide you and pay tokens (the gacha currency) + coins.
 - **🧑‍💻 Build** (bottom toolbar — Staff / Decor / Office): employees **multiply all
@@ -71,9 +74,13 @@ gacha card, collection tile and the office screen.
   flops, fights and thrown objects with arc physics; camera shake on big hits.
 - **2D sticker employees** billboarded into the 3D office: procedural jelly
   squash-and-stretch, jiggly googly eyes, ragdoll flops, fights and thrown objects.
-- **Deep idle progression:** company Level/XP with steady unlocks, a leveled
-  Upgrades tree, and 20+ achievements — plus a more **saturated, vibrant** scene
-  (gradient sky, punchier lighting) and a glowing live wall screen.
+- **Cookie-clicker + idle hybrid:** tap to earn, automate it, and watch a big
+  **income/sec** readout up top. Smaller, faster progression steps.
+- **Deep progression:** company Level/XP with steady unlocks, a leveled Upgrades
+  tree (incl. Click Power, Auto-Manager, Lucky Rolls), 20+ achievements, and
+  **functional decorations** (Cash Printer, Hype Billboard…).
+- **Clean flat UI:** bright, solid colours, no gradients, no loading screen —
+  designed to feel hand-made and polished.
 - 3D isometric office (orthographic Three.js camera, soft shadows), a live wall
   screen that cycles your top brainrots and full-screen memes, polished neon UI,
   animated title screen.
