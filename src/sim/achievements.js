@@ -16,6 +16,8 @@ function statValue(stat) {
     case 'maxlvl': return maxLevel();
     case 'epic': return ownsRarityAtLeast(RARITY_RANK.epic) ? 1 : 0;
     case 'mythic': return ownsRarityAtLeast(RARITY_RANK.mythic) ? 1 : 0;
+    case 'gold': return ownsRarityAtLeast(RARITY_RANK.gold) ? 1 : 0;
+    case 'diamond': return ownsRarityAtLeast(RARITY_RANK.diamond) ? 1 : 0;
     case 'coins': return state.money;
     case 'lifetime': return state.lifetimeMoney;
     case 'fans': return state.followers;

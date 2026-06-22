@@ -8,7 +8,7 @@ import { el, clear } from './dom.js';
 import { fmt, money } from '../core/format.js';
 import { state } from '../core/state.js';
 import { ROSTER, RARITIES } from '../core/config.js';
-import { pull, pullCost, canAffordPull, ownedCount } from '../sim/gacha.js';
+import { pull, pullCost, canAffordPull, ownedCount, RARITY_RANK } from '../sim/gacha.js';
 import { charArt } from '../sim/brainrot.js';
 import { screenShake } from '../world/effects.js';
 import { toast } from './toast.js';
@@ -94,39 +94,52 @@ function render() {
   body.appendChild(grid);
 }
 
-// ---- the reveal -----------------------------------------------------------
-const RANK = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4 };
-
+// ---- the summon reveal ----------------------------------------------------
 function showReveal(results, multi) {
+  const best = results.reduce((b, r) => Math.max(b, RARITY_RANK[r.char.rarity]), 0);
   const cards = el('div', { class: 'reveal-cards' });
   const footer = el('div', { class: 'reveal-foot hidden' }, [
     el('button', { class: 'gacha-btn', text: 'Again', onclick: () => { ov.remove(); const r = pull(multi); if (!r.ok) { toast(r.reason, { icon: '🚫', color: '#ff7a7a' }); render(); } else { showReveal(r.results, multi); render(); } } }),
     el('button', { class: 'gacha-btn primary', text: 'Collect', onclick: () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 250); } }),
   ]);
-  const ov = el('div', { class: 'reveal' }, [el('div', { class: 'reveal-inner' }, [cards, footer])]);
+  const orb = el('div', { class: 'summon-orb' }, [el('div', { class: 'summon-core', text: '🎰' })]);
+  const ov = el('div', { class: 'reveal' }, [el('div', { class: 'reveal-inner' }, [orb, cards, footer])]);
   document.body.appendChild(ov);
-  requestAnimationFrame(() => ov.classList.add('show'));
+  requestAnimationFrame(() => { ov.classList.add('show'); orb.classList.add('charge'); });
+  screenShake(0.4);
 
-  const best = results.reduce((b, r) => Math.max(b, RANK[r.char.rarity]), 0);
+  const stagger = results.length > 3 ? 130 : 360;
+  setTimeout(() => {
+    orb.classList.add('burst');
+    screenShake(0.9 + best * 0.3);
+    flashOverlay(best);
+    setTimeout(() => orb.remove(), 320);
+    results.forEach((res, i) => setTimeout(() => revealCard(cards, res), i * stagger));
+    setTimeout(() => footer.classList.remove('hidden'), results.length * stagger + 250);
+  }, 760);
+}
 
-  results.forEach((res, i) => {
-    setTimeout(() => {
-      const r = RARITIES[res.char.rarity];
-      const card = el('div', { class: `reveal-card r-${res.char.rarity}`, style: { '--rc': r.color } });
-      if (RANK[res.char.rarity] >= 2) card.appendChild(el('div', { class: 'reveal-rays' }));
-      const art = el('div', { class: 'reveal-art' }); art.appendChild(charArt(res.char, 200));
-      card.append(
-        art,
-        el('div', { class: 'reveal-name', text: res.char.name }),
-        el('div', { class: 'reveal-rar', style: { color: r.color }, text: r.name }),
-        el('div', { class: `reveal-badge ${res.isNew ? 'new' : 'up'}`, text: res.isNew ? '✦ NEW' : `Lv ${res.level - 1} → ${res.level}` }),
-      );
-      cards.appendChild(card);
-      requestAnimationFrame(() => card.classList.add('in'));
-      if (RANK[res.char.rarity] >= 2) screenShake(0.5 + RANK[res.char.rarity] * 0.25);
-    }, i * (results.length > 3 ? 180 : 420));
-  });
+function revealCard(cards, res) {
+  const r = RARITIES[res.char.rarity];
+  const card = el('div', { class: `reveal-card r-${res.char.rarity}` });
+  const art = el('div', { class: 'reveal-art' }); art.appendChild(charArt(res.char, 200));
+  card.append(
+    art,
+    el('div', { class: 'reveal-name', text: res.char.name }),
+    el('div', { class: 'reveal-rar', style: { color: r.color }, text: r.name }),
+    el('div', { class: `reveal-badge ${res.isNew ? 'new' : 'up'}`, text: res.isNew ? '✦ NEW' : `Lv ${res.level - 1} → ${res.level}` }),
+  );
+  cards.appendChild(card);
+  requestAnimationFrame(() => card.classList.add('in'));
+  if (RARITY_RANK[res.char.rarity] >= 2) screenShake(0.5 + RARITY_RANK[res.char.rarity] * 0.22);
+}
 
-  if (best >= 3) screenShake(1.4);
-  setTimeout(() => footer.classList.remove('hidden'), results.length * (results.length > 3 ? 180 : 420) + 250);
+function flashOverlay(best) {
+  if (best < 3) return;
+  const colors = { 3: '#ffb02e', 4: '#ff4d8d', 5: '#ffcf33', 6: '#7be0ff' };
+  const f = el('div', { class: 'reveal-flash' });
+  f.style.background = colors[best] || '#ffffff';
+  document.body.appendChild(f);
+  requestAnimationFrame(() => f.classList.add('go'));
+  setTimeout(() => f.remove(), 600);
 }

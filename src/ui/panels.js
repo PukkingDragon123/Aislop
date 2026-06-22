@@ -18,56 +18,53 @@ import { bus } from '../core/events.js';
 import { toast, modal } from './toast.js';
 
 let sheet, sheetTitle, sheetBody, toolbar;
-let currentTab = null;
+let isOpen = false;
 let liveUpdaters = [];
 
-const TABS = [
-  { id: 'staff', icon: '🧑‍💻', label: 'Staff', render: renderStaff },
-  { id: 'upgrades', icon: '⬆️', label: 'Upgrades', render: renderUpgrades },
-  { id: 'decor', icon: '🪴', label: 'Decor', render: renderDecor },
-  { id: 'office', icon: '🏢', label: 'Office', render: renderOffice },
-  { id: 'awards', icon: '🏅', label: 'Awards', render: renderAchievements },
-];
-
+// Everything — upgrades, staff, floor, decor, achievements — lives in ONE panel.
 export function initPanels(container) {
-  sheetTitle = el('div', { class: 'sheet-title' });
+  sheetTitle = el('div', { class: 'sheet-title', text: 'Manage Company' });
   sheetBody = el('div', { class: 'sheet-body' });
-  sheet = el('div', { class: 'sheet hidden' }, [
+  sheet = el('div', { class: 'sheet manage hidden' }, [
     el('div', { class: 'sheet-head' }, [sheetTitle, el('button', { class: 'sheet-close', text: '✕', onclick: closeSheet })]),
     sheetBody,
   ]);
-  toolbar = el('div', { class: 'toolbar' },
-    TABS.map((t) => el('button', { class: 'tool-btn', 'data-tab': t.id, onclick: () => toggleTab(t.id) }, [
-      el('span', { class: 'tool-ico', text: t.icon }), el('span', { class: 'tool-label', text: t.label }),
-    ])).concat(
-      el('button', { class: 'tool-btn', onclick: openSettings }, [
-        el('span', { class: 'tool-ico', text: '⚙️' }), el('span', { class: 'tool-label', text: 'More' }),
-      ]),
-    ));
+  toolbar = el('div', { class: 'toolbar' }, [
+    el('button', { class: 'tool-btn big', onclick: toggleManage }, [el('span', { class: 'tool-ico', text: '🏗️' }), el('span', { class: 'tool-label', text: 'Manage' })]),
+    el('button', { class: 'tool-btn', onclick: openSettings }, [el('span', { class: 'tool-ico', text: '⚙️' }), el('span', { class: 'tool-label', text: 'More' })]),
+  ]);
   container.append(sheet, toolbar);
-  bus.on('purchase', () => { if (currentTab) renderTab(currentTab); });
+  bus.on('purchase', () => { if (isOpen) renderAll(); });
 }
 
-export function openTab(id) { if (TABS.some((t) => t.id === id)) toggleTab(id); }
-
-function toggleTab(id) {
-  if (currentTab === id && !sheet.classList.contains('hidden')) { closeSheet(); return; }
-  renderTab(id);
+function toggleManage() {
+  if (isOpen) { closeSheet(); return; }
+  renderAll();
+  isOpen = true;
   sheet.classList.remove('hidden');
   requestAnimationFrame(() => sheet.classList.add('show'));
-  for (const b of toolbar.querySelectorAll('.tool-btn')) b.classList.toggle('active', b.dataset.tab === id);
+  toolbar.firstChild.classList.add('active');
 }
 function closeSheet() {
+  isOpen = false;
   sheet.classList.remove('show');
   setTimeout(() => sheet.classList.add('hidden'), 260);
-  currentTab = null;
-  for (const b of toolbar.querySelectorAll('.tool-btn')) b.classList.remove('active');
+  toolbar.firstChild.classList.remove('active');
 }
-function renderTab(id) {
-  currentTab = id; liveUpdaters = [];
-  const tab = TABS.find((t) => t.id === id);
-  sheetTitle.textContent = tab.label;
-  clear(sheetBody); tab.render(sheetBody);
+export function openManage() { if (!isOpen) toggleManage(); }
+
+function section(title) { return el('div', { class: 'sheet-section', text: title }); }
+
+function renderAll() {
+  liveUpdaters = [];
+  const scrollTop = sheetBody.scrollTop;
+  clear(sheetBody);
+  sheetBody.appendChild(section('⬆️  Upgrades'));      renderUpgrades(sheetBody);
+  sheetBody.appendChild(section('🧑‍💻  Staff'));         renderStaff(sheetBody);
+  sheetBody.appendChild(section('🏢  Floor & Office')); renderOffice(sheetBody);
+  sheetBody.appendChild(section('🪴  Decorations'));    renderDecor(sheetBody);
+  sheetBody.appendChild(section('🏅  Achievements'));   renderAchievements(sheetBody);
+  sheetBody.scrollTop = scrollTop;
 }
 export function refresh() { for (const fn of liveUpdaters) fn(); }
 
@@ -92,7 +89,7 @@ function buyButton(label, getCost, onBuy, { canBuy } = {}) {
     btn.disabled = locked || !(state.money >= cost && cost !== Infinity);
     btn.innerHTML = cost === Infinity ? `<b>${label}</b><span>MAX</span>` : `<b>${label}</b><span>${money(cost)}</span>`;
   };
-  btn.addEventListener('click', () => { const r = onBuy(); if (r && !r.ok) toast(r.reason, { icon: '🚫', color: '#ff7a7a', ms: 2200 }); else renderTab(currentTab); });
+  btn.addEventListener('click', () => { const r = onBuy(); if (r && !r.ok) toast(r.reason, { icon: '🚫', color: '#ff7a7a', ms: 2200 }); else renderAll(); });
   liveUpdaters.push(update); update();
   return btn;
 }

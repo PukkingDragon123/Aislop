@@ -39,10 +39,11 @@ No `npm install` — Three.js is vendored in `src/vendor/`.
   automate the clicking so it idles for you.
 - **🎟️ Tokens** come from **quests** — tap the quest chip up top to see your goal.
   Quests guide you and pay tokens (the gacha currency) + coins.
-- **🧑‍💻 Build** (bottom toolbar — Staff / Decor / Office): employees **multiply all
-  income**, decorations add morale, expanding unlocks more desks. Staff are **2D
-  sticker characters** with jelly squash, jiggly googly eyes, sloppy wobble-walks
-  and ragdoll "lie flat" flops. **Tap an employee to bully them** (they flop over).
+- **🏗️ Manage** (one button → one panel): upgrades, staff, floor expansion, decor
+  and achievements all live in a single scrollable place. Employees **multiply
+  income**, decorations add morale/effects, expanding unlocks more desks. Staff
+  are **3D potato characters** with big stupid googly eyes and **drunk wobble
+  physics** (spring-sway, stumbles, ragdoll flops). **Tap to make them work.**
 - **🦓 Pets & chaos:** your owned brainrots **roam the floor as pets**, wandering
   and **attacking employees**. Buy chaos props — a **🦖 Office Dino**, a **🧨 TNT
   Crate**, a **🥊 Bully-Bot** — and **tap them** to detonate / stomp / whip everyone
@@ -67,13 +68,13 @@ gacha card, collection tile and the office screen.
 ---
 
 ## ✨ Highlights
-- Real **gacha** with weighted rarities (Common → Mythic) and a staggered reveal
-  (rarity glow, spinning rays, confetti, screen shake).
+- Real **gacha** with 7 weighted rarities (Common → Mythic → **Gold → Diamond**)
+  and a dramatic summon (charging orb, burst flash, rarity-coloured cards, shake).
 - **Duplicate-fusion** leveling — a satisfying "almost there" collection loop.
 - **Chaos employees:** round, squishy, googly-eyed; sloppy wobble-walk, ragdoll
   flops, fights and thrown objects with arc physics; camera shake on big hits.
-- **2D sticker employees** billboarded into the 3D office: procedural jelly
-  squash-and-stretch, jiggly googly eyes, ragdoll flops, fights and thrown objects.
+- **3D potato employees** with googly eyes and drunk, spring-physics wobble walks,
+  ragdoll flops, fights and thrown objects.
 - **Cookie-clicker + idle hybrid:** tap to earn, automate it, and watch a big
   **income/sec** readout up top. Smaller, faster progression steps.
 - **Deep progression:** company Level/XP with steady unlocks, a leveled Upgrades
@@ -111,7 +112,7 @@ src/
   world/
     scene.js            ortho iso camera, lights, controls, camera shake
     office.js           builds the zoo; roaming pets; chaos director; tap-to-bully; wall screen
-    worker.js           2D sticker employee (jelly/googly/walk/ragdoll/fight)
+    worker.js           3D potato employee (googly eyes, drunk wobble physics)
     furniture.js · screen.js · effects.js (confetti, floating text, shake, thrown objects)
   ui/
     hud.js              coins/tokens/followers, quest tracker

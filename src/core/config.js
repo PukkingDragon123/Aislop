@@ -92,11 +92,13 @@ export const MILESTONES = [
 //  game draws charming procedural art instead — drop a URL in to use real art.
 // ----------------------------------------------------------------------------
 export const RARITIES = {
-  common:    { name: 'Common',    weight: 50, income: 0.6,  color: '#9aa6c0', glow: '#cdd6e6' },
-  rare:      { name: 'Rare',      weight: 26, income: 2.2,  color: '#4fa3ff', glow: '#9fd0ff' },
-  epic:      { name: 'Epic',      weight: 15, income: 9,    color: '#b06bff', glow: '#d9b6ff' },
-  legendary: { name: 'Legendary', weight: 7,  income: 42,   color: '#ffb02e', glow: '#ffd98a' },
-  mythic:    { name: 'Mythic',    weight: 2,  income: 200,  color: '#ff4d8d', glow: '#ff9ec4' },
+  common:    { name: 'Common',    weight: 50,  income: 0.6,  color: '#9aa6c0', glow: '#cdd6e6' },
+  rare:      { name: 'Rare',      weight: 26,  income: 2.2,  color: '#4fa3ff', glow: '#9fd0ff' },
+  epic:      { name: 'Epic',      weight: 15,  income: 9,    color: '#b06bff', glow: '#d9b6ff' },
+  legendary: { name: 'Legendary', weight: 7,   income: 42,   color: '#ffb02e', glow: '#ffd98a' },
+  mythic:    { name: 'Mythic',    weight: 2,   income: 200,  color: '#ff4d8d', glow: '#ff9ec4' },
+  gold:      { name: 'Gold',      weight: 0.8, income: 900,  color: '#ffcf33', glow: '#fff0a8' },
+  diamond:   { name: 'Diamond',   weight: 0.3, income: 4200, color: '#7be0ff', glow: '#d6f7ff' },
 };
 
 export const ROSTER = [
@@ -118,6 +120,8 @@ export const ROSTER = [
   { id: 'spioniro',    name: 'Spioniro Golubiro',     emoji: ['🕊️', '📷'], rarity: 'legendary', img: '', blurb: 'Spy pigeon. Is definitely watching you.' },
   { id: 'girafa',      name: 'Girafa Celestre',       emoji: ['🦒', '🌌'], rarity: 'mythic',    img: '', blurb: 'Cosmic giraffe. Sees every timeline at once.' },
   { id: 'orcalero',    name: 'Orcalero Orcala',       emoji: ['🐋', '🎧'], rarity: 'mythic',    img: '', blurb: 'DJ orca. Drops beats and entire ships.' },
+  { id: 'goldino',     name: 'Golden Bombardiro',     emoji: ['🐊', '🥇'], rarity: 'gold',      img: '', blurb: 'Solid-gold croc-jet. Blindingly, obnoxiously rich.' },
+  { id: 'diamantino',  name: 'Diamantino Crystallino',emoji: ['💎', '🦈'], rarity: 'diamond',   img: '', blurb: 'A shark cut from one flawless diamond. Priceless.' },
 ];
 export const ROSTER_BY_ID = Object.fromEntries(ROSTER.map((c) => [c.id, c]));
 
@@ -178,6 +182,8 @@ export const ACHIEVEMENTS = [
   { id: 'lvl15',     icon: '🌟', name: 'Maxed Out',        desc: 'Get a brainrot to Lv 15',      stat: 'maxlvl',   target: 15,     reward: { tokens: 12 } },
   { id: 'epic1',     icon: '💜', name: 'Epic Find',        desc: 'Collect an Epic',              stat: 'epic',     target: 1,      reward: { tokens: 5 } },
   { id: 'myth1',     icon: '💖', name: 'Mythic!',          desc: 'Collect a Mythic',             stat: 'mythic',   target: 1,      reward: { tokens: 15 } },
+  { id: 'gold1',     icon: '🥇', name: 'Solid Gold',       desc: 'Collect a Gold brainrot',      stat: 'gold',     target: 1,      reward: { tokens: 40 } },
+  { id: 'diamond1',  icon: '💎', name: 'Diamond Hands',     desc: 'Collect a Diamond brainrot',   stat: 'diamond',  target: 1,      reward: { tokens: 80 } },
   { id: 'cash1k',    icon: '💵', name: 'Pocket Change',    desc: 'Bank 1,000 coins',             stat: 'coins',    target: 1000,   reward: { tokens: 2 } },
   { id: 'cash1m',    icon: '💰', name: 'Millionaire',      desc: 'Bank 1,000,000 coins',         stat: 'coins',    target: 1e6,    reward: { tokens: 8 } },
   { id: 'cash1b',    icon: '🤑', name: 'Billionaire',      desc: 'Bank 1,000,000,000 coins',     stat: 'coins',    target: 1e9,    reward: { tokens: 30 } },

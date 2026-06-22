@@ -320,3 +320,25 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .banner-ico, .dlg-portrait, .mdio-brainrot, .mdio-emp, .menu-floater, .hud-viral, .act-gacha.ready::after { animation: none !important; }
 }
+
+/* ===== v7: unified manage panel, new rarities, summon orb (all flat) ===== */
+.sheet.manage { max-height: 78vh; }
+.sheet-section { font-size: 12px; font-weight: 800; letter-spacing: .5px; color: var(--ink-soft); text-transform: uppercase;
+  margin: 16px 2px 4px; padding-top: 10px; border-top: 1px solid var(--line); }
+.sheet-section:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.tool-btn.big { background: var(--accent); color: #fff; min-width: 96px; }
+.tool-btn.big.active { background: var(--pink); }
+
+.reveal-card.r-gold { border-color: #ffcf33; box-shadow: 0 0 0 3px rgba(255,207,51,.3); }
+.reveal-card.r-diamond { border-color: #7be0ff; box-shadow: 0 0 0 3px rgba(123,224,255,.35); }
+
+.summon-orb { width: 120px; height: 120px; border-radius: 50%; background: var(--pink); display: grid; place-items: center;
+  transform: scale(.2); opacity: 0; box-shadow: 0 0 0 8px rgba(255,255,255,.16); }
+.summon-core { font-size: 58px; }
+.summon-orb.charge { animation: orbCharge .76s cubic-bezier(.4,0,.6,1) forwards; }
+@keyframes orbCharge { 0% { transform: scale(.2) rotate(0); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(1.1) rotate(540deg); opacity: 1; } }
+.summon-orb.burst { animation: orbBurst .32s ease-out forwards; }
+@keyframes orbBurst { 0% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(3.4); opacity: 0; } }
+.reveal-flash { position: fixed; inset: 0; z-index: 178; pointer-events: none; opacity: 0; }
+.reveal-flash.go { animation: flashOut .6s ease forwards; }
+@media (prefers-reduced-motion: reduce) { .summon-orb.charge, .summon-orb.burst { animation: none !important; opacity: 1; } }

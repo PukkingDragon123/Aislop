@@ -9,7 +9,7 @@ import { ROSTER, RARITIES, ECON } from '../core/config.js';
 import { bus } from '../core/events.js';
 import { getUpgradeEffects } from './economy.js';
 
-export const RARITY_RANK = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4 };
+export const RARITY_RANK = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4, gold: 5, diamond: 6 };
 
 // Luck (from the "Lucky Rolls" upgrade) skews weights toward higher rarities.
 function weightedPick(luck = 0) {
