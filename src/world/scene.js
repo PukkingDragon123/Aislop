@@ -36,11 +36,11 @@ export function initScene(canvasEl) {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.22;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xd8e0ff);
-  scene.fog = new THREE.Fog(0xd8e0ff, 70, 130);
+  scene.background = makeSky();
+  scene.fog = new THREE.Fog(0xc9b6ff, 78, 145);
 
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 240);
 
@@ -53,14 +53,25 @@ export function initScene(canvasEl) {
   return { scene, camera, renderer };
 }
 
+// Vivid vertical-gradient sky for a more saturated, colourful backdrop.
+function makeSky() {
+  const c = document.createElement('canvas'); c.width = 16; c.height = 256;
+  const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, '#7b5cff'); g.addColorStop(0.5, '#b39bff'); g.addColorStop(1, '#ffd6ec');
+  x.fillStyle = g; x.fillRect(0, 0, 16, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.LinearFilter;
+  return t;
+}
+
 function setupLights() {
-  const hemi = new THREE.HemisphereLight(0xffffff, 0xbfcad6, 0.85);
+  const hemi = new THREE.HemisphereLight(0xfff0ff, 0xbfb0d6, 1.0);
   scene.add(hemi);
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.42);
   scene.add(ambient);
 
-  const sun = new THREE.DirectionalLight(0xfff4e0, 1.25);
+  const sun = new THREE.DirectionalLight(0xfff0d8, 1.5);
   sun.position.set(14, 26, 10);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -77,7 +88,7 @@ function setupLights() {
   scene.add(sun.target);
 
   // Soft cool fill from the opposite side to keep shadows from going muddy.
-  const fill = new THREE.DirectionalLight(0xbcd4ff, 0.35);
+  const fill = new THREE.DirectionalLight(0xc9b6ff, 0.5);
   fill.position.set(-12, 10, -8);
   scene.add(fill);
 }

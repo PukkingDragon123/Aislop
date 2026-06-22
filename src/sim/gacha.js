@@ -7,12 +7,16 @@
 import { state, gachaCoinCost } from '../core/state.js';
 import { ROSTER, RARITIES, ECON } from '../core/config.js';
 import { bus } from '../core/events.js';
+import { getUpgradeEffects } from './economy.js';
 
-function weightedPick() {
-  let total = 0;
-  for (const c of ROSTER) total += RARITIES[c.rarity].weight;
+export const RARITY_RANK = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4 };
+
+// Luck (from the "Lucky Rolls" upgrade) skews weights toward higher rarities.
+function weightedPick(luck = 0) {
+  const ws = []; let total = 0;
+  for (const c of ROSTER) { const w = RARITIES[c.rarity].weight * (1 + luck * RARITY_RANK[c.rarity]); ws.push(w); total += w; }
   let r = Math.random() * total;
-  for (const c of ROSTER) { r -= RARITIES[c.rarity].weight; if (r <= 0) return c; }
+  for (let i = 0; i < ROSTER.length; i++) { r -= ws[i]; if (r <= 0) return ROSTER[i]; }
   return ROSTER[0];
 }
 
@@ -37,10 +41,11 @@ export function pull(multi = false) {
   state.tokens -= cost.tokens;
   state.money -= cost.coins;
 
+  const luck = getUpgradeEffects().luck;
   const results = [];
   for (let i = 0; i < cost.n; i++) {
     state.pulls++;
-    const c = weightedPick();
+    const c = weightedPick(luck);
     const had = state.collection[c.id] || 0;
     state.collection[c.id] = had + 1;
     results.push({ char: c, isNew: had === 0, level: state.collection[c.id] });
@@ -53,7 +58,6 @@ export function pull(multi = false) {
 // Helpers for UI / quests.
 export function ownedCount() { return Object.keys(state.collection).length; }
 export function maxLevel() { let m = 0; for (const id in state.collection) m = Math.max(m, state.collection[id]); return m; }
-export const RARITY_RANK = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4 };
 export function ownsRarityAtLeast(rank) {
   for (const id in state.collection) {
     const c = ROSTER.find((x) => x.id === id);

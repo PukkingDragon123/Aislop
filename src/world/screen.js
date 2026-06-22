@@ -52,9 +52,9 @@ export class BigScreen {
     const ctx = this.ctx;
     const W = this.canvas.width, H = this.canvas.height;
     // Background gradient.
-    const g = ctx.createLinearGradient(0, 0, 0, H);
+    const g = ctx.createLinearGradient(0, 0, W, H);
     if (data.viral) { g.addColorStop(0, '#ff4d8d'); g.addColorStop(1, '#7a1f5a'); }
-    else { g.addColorStop(0, '#11203a'); g.addColorStop(1, '#0a1326'); }
+    else { g.addColorStop(0, '#3a1f7a'); g.addColorStop(0.5, '#1a2a6c'); g.addColorStop(1, '#0a1030'); }
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
     // Subtle grid.
@@ -75,22 +75,33 @@ export class BigScreen {
 
     // Header.
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = '#6cc6ff';
+    ctx.fillStyle = '#7bffd0';
     ctx.font = 'bold 34px system-ui, sans-serif';
-    ctx.fillText('AI SLOP.CO  ·  LIVE', 40, 60);
+    ctx.fillText('🦠 BRAINROT ZOO  ·  LIVE', 40, 60);
+    if (data.level != null) {
+      ctx.fillStyle = '#ffd166';
+      ctx.font = 'bold 30px system-ui, sans-serif';
+      ctx.textAlign = 'right'; ctx.fillText('Lv ' + data.level, W - 40, 60); ctx.textAlign = 'left';
+    }
 
-    // Follower hero number.
+    // Follower hero number (with glow).
+    ctx.save();
+    ctx.shadowColor = '#6cc6ff'; ctx.shadowBlur = 28;
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 120px system-ui, sans-serif';
     ctx.fillText(fmt(data.followers), 40, 190);
+    ctx.restore();
     ctx.fillStyle = '#9fb3d1';
     ctx.font = '30px system-ui, sans-serif';
     ctx.fillText('followers', 44, 230);
 
     // Revenue.
-    ctx.fillStyle = '#49e07d';
+    ctx.save();
+    ctx.shadowColor = '#49e07d'; ctx.shadowBlur = 18;
+    ctx.fillStyle = '#7bffb0';
     ctx.font = 'bold 52px system-ui, sans-serif';
     ctx.fillText(`${money(data.perSec)}/s`, 44, 300);
+    ctx.restore();
     ctx.fillStyle = '#9fb3d1';
     ctx.font = '26px system-ui, sans-serif';
     ctx.fillText(`${money(data.money)} in the bank`, 44, 338);

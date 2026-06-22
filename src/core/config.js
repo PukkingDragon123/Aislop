@@ -25,19 +25,19 @@ export const DESK_TIERS = [
 // Departments are now simple income "buildings" you staff & upgrade — no
 // pipeline to juggle. Each staffed desk just produces income.
 export const DEPARTMENTS = [
-  { id: 'trends',     name: 'Trend Lab',    role: 'Trend Hunter', icon: '🔮', color: 0xffb347, uiColor: '#ffae42',
-    desc: 'Scouts spot what the feed wants next.', baseRate: 0.6, baseHireCost: 18, hireGrowth: 1.15,
-    titles: ['Trend Hunter', 'Trend Scout', 'Culture Analyst'] },
-  { id: 'creation',   name: 'Creation Bay', role: 'Content Creator', icon: '✨', color: 0xff6f91, uiColor: '#ff6f91',
+  { id: 'creation',   name: 'Creation Bay', role: 'Content Creator', icon: '✨', color: 0xff6f91, uiColor: '#ff6f91', unlockLevel: 0,
     desc: 'Creators churn out raw AI content all day.', baseRate: 0.7, baseHireCost: 24, hireGrowth: 1.15,
     titles: ['Content Creator', 'Prompt Engineer', 'Game Developer', 'Music Producer', 'Website Designer'] },
-  { id: 'editing',    name: 'Edit Suite',   role: 'Editor', icon: '🎬', color: 0x7bdff2, uiColor: '#56cfe1',
+  { id: 'trends',     name: 'Trend Lab',    role: 'Trend Hunter', icon: '🔮', color: 0xffb347, uiColor: '#ffae42', unlockLevel: 2,
+    desc: 'Scouts spot what the feed wants next.', baseRate: 0.6, baseHireCost: 18, hireGrowth: 1.15,
+    titles: ['Trend Hunter', 'Trend Scout', 'Culture Analyst'] },
+  { id: 'editing',    name: 'Edit Suite',   role: 'Editor', icon: '🎬', color: 0x7bdff2, uiColor: '#56cfe1', unlockLevel: 4,
     desc: 'Editors polish slop into something watchable.', baseRate: 0.65, baseHireCost: 30, hireGrowth: 1.15,
     titles: ['Video Editor', 'Audio Engineer', 'QA Specialist'] },
-  { id: 'publishing', name: 'Upload Hub',   role: 'Publisher', icon: '🚀', color: 0x9bf6a0, uiColor: '#74d680',
+  { id: 'publishing', name: 'Upload Hub',   role: 'Publisher', icon: '🚀', color: 0x9bf6a0, uiColor: '#74d680', unlockLevel: 7,
     desc: 'The upload team ships to every platform at once.', baseRate: 0.6, baseHireCost: 38, hireGrowth: 1.15,
     titles: ['Upload Specialist', 'Platform Manager', 'Release Coordinator'] },
-  { id: 'marketing',  name: 'Growth Floor', role: 'Marketer', icon: '📣', color: 0xc3a6ff, uiColor: '#b18cff',
+  { id: 'marketing',  name: 'Growth Floor', role: 'Marketer', icon: '📣', color: 0xc3a6ff, uiColor: '#b18cff', unlockLevel: 11,
     desc: 'Marketers push content into millions of feeds.', baseRate: 0.8, baseHireCost: 46, hireGrowth: 1.15,
     titles: ['Marketing Specialist', 'Growth Hacker', 'Community Manager'] },
 ];
@@ -136,11 +136,56 @@ export const ECON = {
   gachaTokenCost: 1,      // tokens per single pull
   gachaMultiPulls: 10,    // pulls in a multi
   gachaMultiTokenCost: 9, // tokens for a multi (1 free vs 10 singles)
-  // Dopamine system — fills as you earn; spike = euphoric overdrive.
-  dopamineFillPerSec: 0.06,   // base meter fill/sec (scaled by activity)
-  dopamineDuration: 12,       // seconds a spike lasts
-  dopamineMultiplier: 8,      // income multiplier during a dopamine spike
+  // Company Level (XP = lifetime coins). Each level: +levelIncomeBonus income,
+  // and some levels unlock departments / upgrades.
+  levelBaseXp: 200,       // coins to clear level 1
+  levelGrowth: 1.5,       // XP requirement growth per level
+  levelIncomeBonus: 0.03, // +3% global income per company level
 };
+
+// ----------------------------------------------------------------------------
+//  UPGRADES — permanent, leveled boosts bought with coins. Some unlock with
+//  company level. `apply(level, e)` mutates the shared effects bundle.
+// ----------------------------------------------------------------------------
+export const UPGRADES = [
+  { id: 'gpu',       name: 'Better GPUs',       icon: '🖥️', unlockLevel: 0,  baseCost: 500,    growth: 1.8, max: 50, desc: '+12% brainrot income per level.',  apply: (l, e) => { e.income *= 1 + 0.12 * l; } },
+  { id: 'training',  name: 'Employee Training', icon: '🎓', unlockLevel: 0,  baseCost: 800,    growth: 1.85, max: 50, desc: '+10% employee multiplier per level.', apply: (l, e) => { e.emp *= 1 + 0.10 * l; } },
+  { id: 'cooling',   name: 'Liquid Cooling',    icon: '❄️', unlockLevel: 3,  baseCost: 4000,   growth: 1.9, max: 40, desc: '+15% morale effectiveness per level.', apply: (l, e) => { e.morale *= 1 + 0.15 * l; } },
+  { id: 'algo',      name: 'Algorithm Hacking', icon: '📈', unlockLevel: 4,  baseCost: 12000,  growth: 2.0, max: 40, desc: '+20% follower gain per level.',     apply: (l, e) => { e.followers *= 1 + 0.20 * l; } },
+  { id: 'viralbot',  name: 'Viral Bot Farm',    icon: '🤖', unlockLevel: 6,  baseCost: 60000,  growth: 2.1, max: 25, desc: '+0.5% viral chance per level.',     apply: (l, e) => { e.viralChance += 0.005 * l; } },
+  { id: 'luck',      name: 'Lucky Rolls',       icon: '🍀', unlockLevel: 8,  baseCost: 200000, growth: 2.2, max: 20, desc: 'Better gacha rarity odds (+ luck/level).', apply: (l, e) => { e.luck += 0.06 * l; } },
+  { id: 'servers',   name: 'Offline Servers',   icon: '☁️', unlockLevel: 5,  baseCost: 40000,  growth: 2.0, max: 20, desc: '+25% offline earnings per level.',  apply: (l, e) => { e.offline *= 1 + 0.25 * l; } },
+  { id: 'recruiter', name: 'AI Recruiter',      icon: '🧑‍💼', unlockLevel: 10, baseCost: 500000, growth: 2.3, max: 15, desc: '+1 token from every quest per level.', apply: (l, e) => { e.questTokens += l; } },
+];
+
+// ----------------------------------------------------------------------------
+//  ACHIEVEMENTS — one-time goals with token/coin rewards. `stat` is resolved by
+//  achievements.js; unlock fires a celebration. Separate from the quest chain.
+// ----------------------------------------------------------------------------
+export const ACHIEVEMENTS = [
+  { id: 'firstpull', icon: '🎰', name: 'First Pull',       desc: 'Generate your first brainrot', stat: 'pulls',    target: 1,      reward: { tokens: 1 } },
+  { id: 'own5',      icon: '🦓', name: 'Petting Zoo',      desc: 'Own 5 brainrots',              stat: 'owned',    target: 5,      reward: { tokens: 3 } },
+  { id: 'own10',     icon: '🦒', name: 'Full Zoo',         desc: 'Own 10 brainrots',             stat: 'owned',    target: 10,     reward: { tokens: 6 } },
+  { id: 'ownall',    icon: '🏆', name: 'Gotta Fuse Em All',desc: 'Own all 18 brainrots',         stat: 'owned',    target: 18,     reward: { tokens: 25 } },
+  { id: 'lvl5',      icon: '⭐', name: 'Rising Star',      desc: 'Get a brainrot to Lv 5',       stat: 'maxlvl',   target: 5,      reward: { tokens: 4 } },
+  { id: 'lvl15',     icon: '🌟', name: 'Maxed Out',        desc: 'Get a brainrot to Lv 15',      stat: 'maxlvl',   target: 15,     reward: { tokens: 12 } },
+  { id: 'epic1',     icon: '💜', name: 'Epic Find',        desc: 'Collect an Epic',              stat: 'epic',     target: 1,      reward: { tokens: 5 } },
+  { id: 'myth1',     icon: '💖', name: 'Mythic!',          desc: 'Collect a Mythic',             stat: 'mythic',   target: 1,      reward: { tokens: 15 } },
+  { id: 'cash1k',    icon: '💵', name: 'Pocket Change',    desc: 'Bank 1,000 coins',             stat: 'coins',    target: 1000,   reward: { tokens: 2 } },
+  { id: 'cash1m',    icon: '💰', name: 'Millionaire',      desc: 'Bank 1,000,000 coins',         stat: 'coins',    target: 1e6,    reward: { tokens: 8 } },
+  { id: 'cash1b',    icon: '🤑', name: 'Billionaire',      desc: 'Bank 1,000,000,000 coins',     stat: 'coins',    target: 1e9,    reward: { tokens: 30 } },
+  { id: 'life1m',    icon: '🏦', name: 'Big Earner',       desc: 'Earn 1M coins lifetime',       stat: 'lifetime', target: 1e6,    reward: { tokens: 6 } },
+  { id: 'fans10k',   icon: '📣', name: 'Influencer',       desc: 'Reach 10K followers',          stat: 'fans',     target: 10000,  reward: { tokens: 5 } },
+  { id: 'fans1m',    icon: '🌍', name: 'Global Slop',      desc: 'Reach 1M followers',           stat: 'fans',     target: 1e6,    reward: { tokens: 15 } },
+  { id: 'staff10',   icon: '🧑‍💻', name: 'Real Company',     desc: 'Employ 10 workers',            stat: 'staff',    target: 10,     reward: { tokens: 4 } },
+  { id: 'staff40',   icon: '🏢', name: 'Corporation',      desc: 'Employ 40 workers',            stat: 'staff',    target: 40,     reward: { tokens: 12 } },
+  { id: 'viral10',   icon: '🔥', name: 'Trending',         desc: 'Go viral 10 times',            stat: 'viral',    target: 10,     reward: { tokens: 6 } },
+  { id: 'viral100',  icon: '💥', name: 'Algorithm Darling',desc: 'Go viral 100 times',           stat: 'viral',    target: 100,    reward: { tokens: 20 } },
+  { id: 'lvl10',     icon: '🎖️', name: 'Veteran CEO',      desc: 'Reach company Level 10',       stat: 'level',    target: 10,     reward: { tokens: 8 } },
+  { id: 'lvl25',     icon: '👑', name: 'Slop Mogul',       desc: 'Reach company Level 25',       stat: 'level',    target: 25,     reward: { tokens: 25 } },
+  { id: 'bully25',   icon: '🥊', name: 'HR Nightmare',     desc: 'Bully employees 25 times',     stat: 'bullies',  target: 25,     reward: { tokens: 5 } },
+  { id: 'office',    icon: '🌆', name: 'Mega-Campus',      desc: 'Reach the AI Mega-Campus',     stat: 'office',   target: 5,      reward: { tokens: 30 } },
+];
 
 // QUESTS — completing them awards Tokens (the gacha currency) + coins.
 // Sequential chain; `cur(state)` returns current progress toward `target`.

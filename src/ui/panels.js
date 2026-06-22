@@ -6,13 +6,14 @@
 
 import { el, clear } from './dom.js';
 import {
-  state, hireCost, deskUpgradeCost, decoCost, officeUpgradeCost,
+  state, hireCost, deskUpgradeCost, decoCost, officeUpgradeCost, upgradeCost,
   capacity, totalWorkers, atCapacity, saveState, resetState, exportSave, importSave,
 } from '../core/state.js';
-import { DEPARTMENTS, DECORATIONS, DESK_TIERS, OFFICE_LEVELS } from '../core/config.js';
+import { DEPARTMENTS, DECORATIONS, DESK_TIERS, OFFICE_LEVELS, UPGRADES, ACHIEVEMENTS } from '../core/config.js';
 import { fmt, money } from '../core/format.js';
 import * as actions from '../sim/actions.js';
-import { employeeOutput, deptPower, computeModifiers, incomePerSec, collectionCount } from '../sim/economy.js';
+import { deptPower, computeModifiers, incomePerSec, collectionCount, companyLevel } from '../sim/economy.js';
+import { achievementProgress, isUnlocked, unlockedCount } from '../sim/achievements.js';
 import { bus } from '../core/events.js';
 import { toast, modal } from './toast.js';
 
@@ -22,8 +23,10 @@ let liveUpdaters = [];
 
 const TABS = [
   { id: 'staff', icon: '🧑‍💻', label: 'Staff', render: renderStaff },
+  { id: 'upgrades', icon: '⬆️', label: 'Upgrades', render: renderUpgrades },
   { id: 'decor', icon: '🪴', label: 'Decor', render: renderDecor },
   { id: 'office', icon: '🏢', label: 'Office', render: renderOffice },
+  { id: 'awards', icon: '🏅', label: 'Awards', render: renderAchievements },
 ];
 
 export function initPanels(container) {
@@ -102,6 +105,12 @@ function renderStaff(body) {
   if (atCapacity()) body.appendChild(el('div', { class: 'sheet-warn', text: `Office full (${totalWorkers()}/${capacity()}). Expand your office to hire more.` }));
   for (const d of DEPARTMENTS) {
     const sd = state.depts[d.id];
+    if (companyLevel() < d.unlockLevel) {
+      const lc = card({ accent: '#9aa6c0', icon: '🔒', title: d.name, sub: d.role, desc: `Unlocks at company Level ${d.unlockLevel}.`, tags: [tag(`🔒 Lv ${d.unlockLevel}`, '#9aa6c0')] });
+      lc.node.classList.add('locked-card');
+      body.appendChild(lc.node);
+      continue;
+    }
     const tier = DESK_TIERS[sd.tier];
     const nextTier = DESK_TIERS[sd.tier + 1];
     const tags = [tag(`${sd.workers} staff`, d.uiColor), tag(`+${deptPower(d.id).toFixed(1)} power`, '#9aa6c0'), tag(tier.name, '#9aa6c0')];
@@ -109,6 +118,38 @@ function renderStaff(body) {
     c.actions.appendChild(buyButton('Hire', () => hireCost(d.id), () => actions.hire(d.id), { canBuy: () => !atCapacity() }));
     c.actions.appendChild(buyButton(nextTier ? `⬆ ${nextTier.name.replace(' Station', '').replace(' Office', '').replace(' Setup', '')}` : 'Desk',
       () => deskUpgradeCost(d.id), () => actions.upgradeDesk(d.id), { canBuy: () => sd.workers > 0 && sd.tier < DESK_TIERS.length - 1 }));
+    body.appendChild(c.node);
+  }
+}
+
+// ---- UPGRADES -------------------------------------------------------------
+function renderUpgrades(body) {
+  body.appendChild(el('div', { class: 'sheet-hint', html: `Permanent boosts bought with coins. More unlock as your company <b>levels up</b> (Lv ${companyLevel()}).` }));
+  for (const u of UPGRADES) {
+    const lvl = state.upgrades[u.id] || 0;
+    if (companyLevel() < u.unlockLevel) {
+      const lc = card({ accent: '#9aa6c0', icon: '🔒', title: u.name, desc: `Unlocks at company Level ${u.unlockLevel}.`, tags: [tag(`🔒 Lv ${u.unlockLevel}`, '#9aa6c0')] });
+      lc.node.classList.add('locked-card'); body.appendChild(lc.node); continue;
+    }
+    const tags = [tag(`Lv ${lvl}/${u.max}`, '#56cfe1')];
+    const c = card({ accent: '#56cfe1', icon: u.icon, title: u.name, desc: u.desc, tags });
+    c.actions.appendChild(buyButton(lvl > 0 ? 'Upgrade' : 'Buy', () => upgradeCost(u.id), () => actions.buyUpgrade(u.id), { canBuy: () => lvl < u.max }));
+    body.appendChild(c.node);
+  }
+}
+
+// ---- ACHIEVEMENTS ---------------------------------------------------------
+function renderAchievements(body) {
+  body.appendChild(el('div', { class: 'sheet-hint', html: `Achievements unlocked: <b>${unlockedCount()}/${ACHIEVEMENTS.length}</b>. Each pays out tokens or coins.` }));
+  for (const a of ACHIEVEMENTS) {
+    const done = isUnlocked(a);
+    const prog = achievementProgress(a);
+    const reward = []; if (a.reward.tokens) reward.push(`${a.reward.tokens}🎟️`); if (a.reward.coins) reward.push(money(a.reward.coins));
+    const tags = [tag(reward.join(' '), '#ffce47')];
+    if (!done) tags.unshift(tag(`${fmt(prog)}/${fmt(a.target)}`, '#9aa6c0'));
+    const c = card({ accent: done ? '#22b573' : '#9aa6c0', icon: done ? '✅' : a.icon, title: a.name, desc: a.desc, tags });
+    if (done) c.actions.appendChild(el('div', { class: 'pill-ok', text: '✓' }));
+    c.node.classList.toggle('locked-card', !done);
     body.appendChild(c.node);
   }
 }

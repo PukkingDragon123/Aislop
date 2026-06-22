@@ -4,19 +4,19 @@
 //  (won from quests, spent on gacha). The collection maps brainrotId -> level.
 // ============================================================================
 
-import { DEPARTMENTS, DECORATIONS, OFFICE_LEVELS, DESK_TIERS, ROSTER, ECON } from './config.js';
+import { DEPARTMENTS, DECORATIONS, OFFICE_LEVELS, DESK_TIERS, ROSTER, UPGRADES, ECON } from './config.js';
 
 const SAVE_KEY = 'aislop.save.v2';
 
 export function defaultState() {
   const depts = {};
   for (const d of DEPARTMENTS) depts[d.id] = { workers: 0, tier: 0 };
-  // A few starter employees so the zoo has staff from second one.
-  depts.creation.workers = 1;
-  depts.marketing.workers = 1;
+  depts.creation.workers = 1; // one starter employee in the only unlocked dept
 
   const decorations = {};
   for (const d of DECORATIONS) decorations[d.id] = 0;
+  const upgrades = {};
+  for (const u of UPGRADES) upgrades[u.id] = 0;
 
   return {
     version: 2,
@@ -26,12 +26,14 @@ export function defaultState() {
     lifetimeMoney: 0,
     totalViral: 0,
     pulls: 0,              // gacha pulls performed
-    spikes: 0,             // dopamine spikes triggered
+    bullies: 0,            // employees bullied (for an achievement)
     questStep: 0,
     officeLevel: 0,
     depts,
     decorations,
+    upgrades,
     collection: { chimpanzini: 1 }, // start with one common exhibit
+    achievements: {},      // unlocked achievement ids
     milestonesHit: {},
     startTime: Date.now(),
     lastSeen: Date.now(),
@@ -58,6 +60,10 @@ function reconcile(saved) {
   }
   s.decorations = {};
   for (const d of DECORATIONS) s.decorations[d.id] = clampInt(saved.decorations?.[d.id], 0);
+  s.upgrades = {};
+  for (const u of UPGRADES) s.upgrades[u.id] = clampInt(saved.upgrades?.[u.id], 0, u.max);
+  s.achievements = { ...(saved.achievements || {}) };
+  s.bullies = clampInt(saved.bullies, 0);
   s.collection = {};
   for (const c of ROSTER) if (saved.collection?.[c.id]) s.collection[c.id] = clampInt(saved.collection[c.id], 1);
   if (Object.keys(s.collection).length === 0) s.collection = { chimpanzini: 1 };
@@ -120,6 +126,12 @@ export function officeUpgradeCost() {
 }
 export function gachaCoinCost() {
   return Math.floor(ECON.gachaBaseCoin * Math.pow(ECON.gachaCoinGrowth, state.pulls));
+}
+export function upgradeCost(id) {
+  const u = UPGRADES.find((x) => x.id === id);
+  const lvl = state.upgrades[id] || 0;
+  if (lvl >= u.max) return Infinity;
+  return Math.floor(u.baseCost * Math.pow(u.growth, lvl));
 }
 
 // --- derived ---------------------------------------------------------------

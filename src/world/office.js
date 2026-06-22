@@ -15,6 +15,7 @@ import { Worker } from './worker.js';
 import { BigScreen } from './screen.js';
 import { setCameraTarget, fitView, getCamera, getRenderer } from './scene.js';
 import { throwProjectile, confettiBurst, screenShake } from './effects.js';
+import { companyLevel } from '../sim/economy.js';
 import { randomMeme, memeFromChar, renderMemeCanvas } from '../sim/brainrot.js';
 
 const TILE = 2.2;
@@ -449,7 +450,7 @@ function handleTap(e) {
   if (!hits.length) return;
   let o = hits[0].object;
   while (o) {
-    if (o.userData && o.userData.worker) { o.userData.worker.ragdoll(); confettiBurst(new THREE.Vector3(o.parent.position.x, 1.5, o.parent.position.z), 30, 0.8); screenShake(0.5); return; }
+    if (o.userData && o.userData.worker) { o.userData.worker.ragdoll(); state.bullies = (state.bullies || 0) + 1; confettiBurst(new THREE.Vector3(o.parent.position.x, 1.5, o.parent.position.z), 30, 0.8); screenShake(0.5); return; }
     if (o.userData && o.userData.chaosId) { triggerProp({ mesh: o, id: o.userData.chaosId }); return; }
     o = o.parent;
   }
@@ -477,7 +478,7 @@ function drawScreen() {
   }).sort((a, b) => b.v - a.v).slice(0, 6);
   tickerIndex = (tickerIndex + 1) % (TICKERS.length * 30);
   bigScreen.draw({
-    followers: state.followers, perSec: screenData.rates.money, money: state.money,
+    followers: state.followers, perSec: screenData.rates.money, money: state.money, level: companyLevel(),
     products: items, viral: false, ticker: TICKERS[Math.floor(tickerIndex / 30) % TICKERS.length],
   });
 }

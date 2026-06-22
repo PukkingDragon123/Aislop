@@ -7,10 +7,11 @@
 import { initScene, getScene, onFrame, rotateCamera, zoomCamera } from './world/scene.js';
 import { initOffice, setScreenData } from './world/office.js';
 import { initEffects, updateEffects, confettiBurst, screenShake, floatingText } from './world/effects.js';
-import { tick, computeOffline, getRates, getViralTimer } from './sim/economy.js';
+import { tick, computeOffline, getRates, getViralTimer, initLevel } from './sim/economy.js';
 import { checkQuests, QUESTS } from './sim/quests.js';
+import { checkAchievements } from './sim/achievements.js';
 import { loadState, saveState, resetState, state } from './core/state.js';
-import { ECON, RARITIES } from './core/config.js';
+import { ECON, RARITIES, DEPARTMENTS, UPGRADES } from './core/config.js';
 import { bus } from './core/events.js';
 import { money, fmt, duration } from './core/format.js';
 import { el } from './ui/dom.js';
@@ -30,6 +31,7 @@ function start() {
 
   const { fresh } = loadState();
   isFresh = fresh;
+  initLevel();
   office = initOffice(getScene());
   pendingOffline = fresh ? null : computeOffline((Date.now() - state.lastSeen) / 1000);
 
@@ -86,6 +88,20 @@ function wireEvents() {
 
   bus.on('deskUpgraded', () => toast('Workstations upgraded ✨', { icon: '⬆️', color: '#56cfe1' }));
   bus.on('officeExpanded', () => { toast('Office expanded — more room for chaos!', { icon: '🏢' }); screenShake(0.8); });
+  bus.on('upgradeBought', () => toast('Upgrade purchased ⬆️', { icon: '⬆️', color: '#56cfe1' }));
+
+  bus.on('levelUp', ({ level }) => {
+    banner(`LEVEL ${level}!`, 'Company leveled up — all income boosted', { icon: '🎖️' });
+    screenShake(0.9); confettiBurst(office.randomCelebrationPos(), 110, 1.2);
+    const dep = DEPARTMENTS.find((d) => d.unlockLevel === level); if (dep) toast(`Unlocked department: ${dep.icon} ${dep.name}!`, { icon: '🔓', color: '#49e07d', ms: 4500 });
+    const up = UPGRADES.find((u) => u.unlockLevel === level); if (up) toast(`Upgrade unlocked: ${up.icon} ${up.name}!`, { icon: '🔓', color: '#56cfe1', ms: 4500 });
+  });
+  bus.on('achievement', ({ ach }) => {
+    const r = []; if (ach.reward.tokens) r.push(`${ach.reward.tokens}🎟️`); if (ach.reward.coins) r.push(money(ach.reward.coins));
+    banner(`🏅 ${ach.name}`, `${ach.desc} · +${r.join('  +')}`, { icon: '🏅' });
+    confettiBurst(office.randomCelebrationPos(), 120, 1.2);
+  });
+
   bus.on('ui:gacha', () => openGacha());
   bus.on('ui:quests', () => showQuests());
 }
@@ -106,7 +122,7 @@ function startLoop() {
     if (panelTimer <= 0) { panelTimer = 0.25; refreshPanels(); refreshGacha(); }
 
     metaTimer -= dt;
-    if (metaTimer <= 0) { metaTimer = 0.4; checkQuests(); }
+    if (metaTimer <= 0) { metaTimer = 0.4; checkQuests(); checkAchievements(); }
 
     floatTimer -= dt;
     if (floatTimer <= 0) {

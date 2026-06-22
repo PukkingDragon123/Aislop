@@ -6,7 +6,7 @@
 import { QUESTS } from '../core/config.js';
 import { state, totalWorkers } from '../core/state.js';
 import { bus } from '../core/events.js';
-import { incomePerSec } from './economy.js';
+import { incomePerSec, getUpgradeEffects } from './economy.js';
 import { ownedCount, maxLevel, ownsRarityAtLeast, RARITY_RANK } from './gacha.js';
 
 function statValue(stat) {
@@ -34,7 +34,7 @@ export function checkQuests() {
   while (state.questStep < QUESTS.length && guard++ < 50) {
     const q = QUESTS[state.questStep];
     if (statValue(q.stat) >= q.target) {
-      if (q.reward.tokens) state.tokens += q.reward.tokens;
+      if (q.reward.tokens) state.tokens += q.reward.tokens + getUpgradeEffects().questTokens;
       if (q.reward.coins) state.money += q.reward.coins;
       state.questStep++;
       bus.emit('questComplete', { quest: q, reward: q.reward });

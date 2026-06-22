@@ -47,6 +47,11 @@ No `npm install` — Three.js is vendored in `src/vendor/`.
 - **🐋 Orca Tank:** every few minutes an investor offer pops up — pitch your startup
   (your choice changes the payout) for a cash injection. A tutorial NPC shows you
   the ropes on first run.
+- **📈 Progression:** lifetime coins are **XP** — your **company Level** ticks up
+  (bar in the HUD), giving a permanent income bonus and **unlocking new
+  departments & upgrades** as you climb. Buy a tree of permanent **Upgrades**
+  (better GPUs, training, lucky rolls, offline servers…) and chase **20+
+  Achievements**, each paying tokens or coins.
 - **🔥 Viral** moments randomly multiply income; everything **autosaves** and keeps
   earning **offline** (capped at 8h, with a welcome-back summary).
 
@@ -66,6 +71,9 @@ gacha card, collection tile and the office screen.
   flops, fights and thrown objects with arc physics; camera shake on big hits.
 - **2D sticker employees** billboarded into the 3D office: procedural jelly
   squash-and-stretch, jiggly googly eyes, ragdoll flops, fights and thrown objects.
+- **Deep idle progression:** company Level/XP with steady unlocks, a leveled
+  Upgrades tree, and 20+ achievements — plus a more **saturated, vibrant** scene
+  (gradient sky, punchier lighting) and a glowing live wall screen.
 - 3D isometric office (orthographic Three.js camera, soft shadows), a live wall
   screen that cycles your top brainrots and full-screen memes, polished neon UI,
   animated title screen.
@@ -90,6 +98,7 @@ src/
     economy.js          zoo income, employee/morale/audience mults, viral, offline
     gacha.js            weighted pulls, duplicate-fusion leveling, costs
     quests.js           token-awarding quest chain
+    achievements.js     20+ one-time achievements with rewards
     actions.js          build verbs (hire / upgrade / decorate / expand)
     brainrot.js         procedural meme art + names; charArt() (img-or-procedural)
   world/

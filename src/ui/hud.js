@@ -7,7 +7,7 @@ import { el } from './dom.js';
 import { state, capacity, totalWorkers } from '../core/state.js';
 import { OFFICE_LEVELS } from '../core/config.js';
 import { fmt, money, rate, duration } from '../core/format.js';
-import { getRates, getViralTimer } from '../sim/economy.js';
+import { getRates, getViralTimer, xpInfo } from '../sim/economy.js';
 import { currentQuest } from '../sim/quests.js';
 import { bus } from '../core/events.js';
 
@@ -39,7 +39,11 @@ export function initHud(container) {
     ]),
     el('div', { class: 'quest-prog' }),
   ]);
-  const sub = el('div', { class: 'hud-sub' }, [refs.quest]);
+  refs.level = el('div', { class: 'level-chip' }, [
+    el('div', { class: 'level-num' }),
+    el('div', { class: 'level-bar' }, [el('div', { class: 'level-fill' })]),
+  ]);
+  const sub = el('div', { class: 'hud-sub' }, [refs.level, refs.quest]);
 
   const bar = el('div', { class: 'hud' }, [
     el('div', { class: 'hud-brand' }, [
@@ -73,6 +77,10 @@ export function update() {
 
   const lvl = OFFICE_LEVELS[state.officeLevel];
   refs.office.textContent = `${lvl.name} · ${totalWorkers()}/${capacity()} staff`;
+
+  const xi = xpInfo();
+  refs.level.querySelector('.level-num').textContent = 'Lv ' + xi.level;
+  refs.level.querySelector('.level-fill').style.width = `${Math.round(xi.progress * 100)}%`;
 
   const vt = getViralTimer();
   if (vt > 0) { refs.viral.classList.remove('hidden'); refs.viralTime().textContent = duration(vt); }

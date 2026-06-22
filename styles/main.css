@@ -595,3 +595,10 @@ button { font-family: inherit; cursor: pointer; border: none; }
 .dlg-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: flex-end; }
 .dlg-btn { background: var(--line); color: var(--ink); border-radius: 12px; padding: 10px 16px; font-weight: 700; font-size: 13px; }
 .dlg-btn.primary { background: var(--accent); color: #fff; }
+
+/* ===== v5 progression: level chip, locked cards ===== */
+.level-chip { display: flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 99px; padding: 5px 12px; box-shadow: var(--shadow-sm); }
+.level-num { font-size: 12px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.level-bar { width: 64px; height: 6px; border-radius: 99px; background: rgba(27,36,64,.14); overflow: hidden; }
+.level-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ffce47, #ff5db1); transition: width .4s; }
+.locked-card { opacity: .62; filter: grayscale(.4); }

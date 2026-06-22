@@ -3,14 +3,17 @@
 //  { ok, reason } and emits an event the 3D world reacts to.
 // ============================================================================
 
-import { state, hireCost, deskUpgradeCost, decoCost, officeUpgradeCost, atCapacity } from '../core/state.js';
-import { DESK_TIERS, OFFICE_LEVELS } from '../core/config.js';
+import { state, hireCost, deskUpgradeCost, decoCost, officeUpgradeCost, upgradeCost, atCapacity } from '../core/state.js';
+import { DESK_TIERS, OFFICE_LEVELS, DEPARTMENTS, UPGRADES } from '../core/config.js';
+import { companyLevel } from './economy.js';
 import { bus } from '../core/events.js';
 
 function fail(reason) { return { ok: false, reason }; }
 function done(extra) { bus.emit('purchase'); return { ok: true, ...extra }; }
 
 export function hire(deptId) {
+  const def = DEPARTMENTS.find((d) => d.id === deptId);
+  if (companyLevel() < def.unlockLevel) return fail(`Unlocks at Level ${def.unlockLevel}.`);
   if (atCapacity()) return fail('Office is full — expand to hire more.');
   const cost = hireCost(deptId);
   if (state.money < cost) return fail('Not enough coins.');
@@ -39,6 +42,19 @@ export function buyDecoration(id) {
   state.decorations[id]++;
   bus.emit('decoAdded', { id, index: state.decorations[id] - 1 });
   return done({ cost });
+}
+
+export function buyUpgrade(id) {
+  const u = UPGRADES.find((x) => x.id === id);
+  if (!u) return fail('Unknown upgrade.');
+  if (companyLevel() < u.unlockLevel) return fail(`Unlocks at Level ${u.unlockLevel}.`);
+  if (state.upgrades[id] >= u.max) return fail('Maxed out.');
+  const cost = upgradeCost(id);
+  if (state.money < cost) return fail('Not enough coins.');
+  state.money -= cost;
+  state.upgrades[id]++;
+  bus.emit('upgradeBought', { id, level: state.upgrades[id] });
+  return done({ cost, level: state.upgrades[id] });
 }
 
 export function expandOffice() {
