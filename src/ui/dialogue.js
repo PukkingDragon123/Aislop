@@ -46,10 +46,10 @@ export function startTutorial(onDone) {
   showDialogue([
     { npc: '🦠', name: 'Bloop the Intern', text: 'Welcome to your Brainrot Zoo! Let me show you the ropes — it\'ll take 10 seconds.' },
     { npc: '🦠', name: 'Bloop', text: 'Smash the 🎰 button (bottom-left) to GENERATE brainrots. They\'re your exhibits — they print coins 24/7. Duplicates fuse and level up!' },
-    { npc: '🦠', name: 'Bloop', text: 'Hire employees from the bottom bar — they MULTIPLY all that income. Decorate for morale, expand for room.' },
+    { npc: '🦠', name: 'Bloop', text: 'Hit the 🛒 BUILD button — staff, stations, decor and upgrades are all one list, cheapest first. Just keep buying the top one!' },
     { npc: '🦠', name: 'Bloop', text: 'Tokens 🎟️ pay for the gacha. You earn them from QUESTS — tap the quest chip up top to see your goal.' },
     { npc: '🦠', name: 'Bloop', text: 'TAP the office to make employees WORK for instant coins — or buy the 🤖 Auto-Manager upgrade to automate it!' },
-    { npc: '🦠', name: 'Bloop', text: 'Build 🏭 STATIONS in Manage, then TAP them to run for a coin burst. Buy ⚙️ Auto-Pilot and they run themselves forever!' },
+    { npc: '🦠', name: 'Bloop', text: 'Build 🏭 STATIONS in the shop, then TAP them in the zoo to run for a coin burst. Buy ⚙️ Auto-Pilot and they run themselves forever!' },
     { npc: '🦠', name: 'Bloop', text: '🗑️ Trash piles up and drags your income down — tap it to sweep it, or buy a 🧹 Janitor Bot to auto-clean.' },
     { npc: '🦠', name: 'Bloop', text: 'Watch for events: 🐋 Orca Tank investors, a 🦝 Sketchy Dealer\'s deals, and 🧑‍💻 employee meltdowns. Also tap chaos props (🦖🧨)! Now go feral! 🎉' },
   ], onDone);

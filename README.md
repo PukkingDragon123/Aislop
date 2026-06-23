@@ -2,9 +2,9 @@
 
 > A chaotic **3D idle gacha tycoon**. Run a digital zoo of AI "brainrot" creatures
 > that print coins, **generate** new ones from a gacha, fuse duplicates to level
-> them up, staff a wobbly googly-eyed office full of **2D sloppy employees** you
-> can bully, and let your brainrots roam as **pets** that fight the staff. Built
-> with **Three.js**, zero build step.
+> them up, staff a wobbly office full of **3D googly-eyed potato employees** you
+> can bully, and let your brainrots roam as **3D pets** that fight the staff.
+> Built with **Three.js**, zero build step.
 
 Three pillars, nothing else in the way:
 
@@ -44,16 +44,19 @@ No `npm install` — Three.js is vendored in `src/vendor/`.
   down** — tap it to sweep it, or buy a **Janitor Bot** to auto-clean.
 - **🎟️ Tokens** come from **quests** — tap the quest chip up top to see your goal.
   Quests guide you and pay tokens (the gacha currency) + coins.
-- **🏗️ Manage** (one button → one panel): **stations, all upgrades, staff, floor
-  expansion, decor and achievements** live in a single scrollable place.
-  Employees **multiply income**, decorations add morale/effects, expanding
-  unlocks more desks. Staff are **3D potato characters** with big stupid googly
-  eyes and **drunk wobble physics** (spring-sway, stumbles, ragdoll flops).
-  **Tap to make them work.**
-- **🦓 Pets & chaos:** your owned brainrots **roam the floor as pets**, wandering
-  and **attacking employees**. Buy chaos props — a **🦖 Office Dino**, a **🧨 TNT
-  Crate**, a **🥊 Bully-Bot** — and **tap them** to detonate / stomp / whip everyone
-  flat. Plus a ☕ coffee machine and 🍔 snack bar for the staff.
+- **🛒 Build** (one Cookie-Clicker shop): staff, stations, decorations, desk
+  upgrades, the whole upgrade tree and office expansions are **all one list,
+  sorted cheapest → priciest** — there's always an obvious next buy. Just keep
+  grabbing the top one. (**🏅 Goals** and **⚙️ More** sit in their own buttons so
+  the shop stays clean.) Staff are **3D potato characters** with big stupid
+  googly eyes and **drunk wobble physics** (spring-sway, stumbles, ragdoll
+  flops). **Tap to make them work.**
+- **🦓 Pets & chaos:** **45 collectible brainrots**, and your owned ones **roam
+  the floor as little 3D creatures** — rarity-coloured blobs with googly eyes,
+  crowns/halos for the rare ones — wandering, hopping and **attacking employees**.
+  Buy chaos props — a **🦖 Office Dino**, a **🧨 TNT Crate**, a **🥊 Bully-Bot** —
+  and **tap them** to detonate / stomp / whip everyone flat. Plus a ☕ coffee
+  machine and 🍔 snack bar for the staff.
 - **🐋 Events:** an investor **🐋 Orca Tank** pitch, a **🦝 Sketchy Dealer** with
   risky deals (mystery crates, double-or-nothing), and **🧑‍💻 employee problems**
   (pay them off, throw a pizza party, or ignore it and watch the meltdown).

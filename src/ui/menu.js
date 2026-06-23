@@ -34,17 +34,18 @@ export function showMenu({ fresh, onPlay, onTutorial, onReset, onLoad }) {
     menuStat('🏆', fmt(countDiscovered()), 'collected'),
   ]);
 
-  // Little diorama: an employee at a desk watching a brainrot on the monitor.
-  const brainrotEl = el('div', { class: 'mdio-brainrot', text: '🦈' });
+  // Little diorama: two googly-eyed potato employees brawling over a brainrot.
+  const brainrotEl = el('div', { class: 'mdio-orb', text: '🦈' });
   const diorama = el('div', { class: 'menu-diorama' }, [
-    el('div', { class: 'mdio-monitor' }, [el('div', { class: 'mdio-screen' }, [brainrotEl]), el('div', { class: 'mdio-stand' })]),
-    el('div', { class: 'mdio-emp' }, [
-      el('div', { class: 'mdio-head' }, [el('div', { class: 'mdio-eye' }), el('div', { class: 'mdio-eye' })]),
-      el('div', { class: 'mdio-body' }),
-    ]),
-    el('div', { class: 'mdio-desk' }),
+    brainrotEl,
+    el('div', { class: 'mpotato p1' }, potatoParts()),
+    el('div', { class: 'mpotato p2' }, potatoParts()),
+    el('div', { class: 'mdio-pow', text: '💥' }),
+    el('div', { class: 'mdio-spark s1', text: '✦' }),
+    el('div', { class: 'mdio-spark s2', text: '✦' }),
+    el('div', { class: 'mdio-floor' }),
   ]);
-  const ROT = ['🦈', '🐊', '🍌', '🩰', '🦒', '🐋', '☕', '🪿'];
+  const ROT = ['🦈', '🐊', '🍌', '🩰', '🦒', '🐋', '☕', '🪿', '🍕', '🐉'];
   let ri = 0;
   clearInterval(dioTimer);
   dioTimer = setInterval(() => { ri = (ri + 1) % ROT.length; brainrotEl.textContent = ROT[ri]; }, 1100);
@@ -77,6 +78,16 @@ function close(cb) {
   overlay.classList.remove('show');
   overlay.classList.add('out');
   setTimeout(() => { overlay.remove(); overlay = null; if (cb) cb(); }, 480);
+}
+
+function potatoParts() {
+  return [
+    el('div', { class: 'mp-body' }, [
+      el('div', { class: 'mp-eyes' }, [el('div', { class: 'mp-eye' }), el('div', { class: 'mp-eye' })]),
+    ]),
+    el('div', { class: 'mp-leg l' }),
+    el('div', { class: 'mp-leg r' }),
+  ];
 }
 
 function menuStat(icon, value, label) {

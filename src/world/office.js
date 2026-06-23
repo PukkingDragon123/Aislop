@@ -16,7 +16,8 @@ import { BigScreen } from './screen.js';
 import { setCameraTarget, fitView, getCamera, getRenderer } from './scene.js';
 import { throwProjectile, confettiBurst, screenShake, floatingText } from './effects.js';
 import { companyLevel, click as workClick, runStation, isStationActive, grantCash } from '../sim/economy.js';
-import { randomMeme, memeFromChar, renderMemeCanvas } from '../sim/brainrot.js';
+import { randomMeme, memeFromChar } from '../sim/brainrot.js';
+import { buildBrainrot } from './brainrot3d.js';
 import { money } from '../core/format.js';
 
 const JANITOR_DEF = DECORATIONS.find((d) => d.id === 'janitor');
@@ -51,7 +52,6 @@ let janitorTimer = 0, trashTimer = 16;
 const animated = [];    // decoration meshes with userData animation flags
 const raycaster = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
-const petTexCache = new Map();
 
 let screenTimer = 0;
 let tickerIndex = 0;
@@ -496,36 +496,45 @@ function triggerProp(prop) {
   }
 }
 
-// ---- roaming brainrot pets ------------------------------------------------
-function petTexture(char) {
-  if (petTexCache.has(char.id)) return petTexCache.get(char.id);
-  const t = new THREE.CanvasTexture(renderMemeCanvas(128, memeFromChar(char)));
-  t.colorSpace = THREE.SRGBColorSpace; petTexCache.set(char.id, t); return t;
-}
+// ---- roaming brainrot pets (now real 3D models) ---------------------------
 function randomFloorPoint() { return { x: (Math.random() - 0.5) * layout.W * 0.7, z: (Math.random() - 0.5) * layout.D * 0.55 }; }
 function refreshPets() {
-  const ids = Object.keys(state.collection).slice(0, 8); // cap visible pets
-  for (const p of pets) petGroup.remove(p.sprite);
+  const ids = Object.keys(state.collection).slice(0, 12); // cap visible pets
+  for (const p of pets) petGroup.remove(p.group);
   pets = [];
   for (const id of ids) {
     const c = ROSTER_BY_ID[id]; if (!c) continue;
-    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: petTexture(c), transparent: true }));
-    spr.scale.set(1.05, 1.05, 1);
-    const fp = randomFloorPoint(); spr.position.set(fp.x, 0.55, fp.z);
-    petGroup.add(spr);
-    pets.push({ sprite: spr, char: c, target: randomFloorPoint(), speed: 1.2 + Math.random() * 0.9, attackCd: 5 + Math.random() * 8, phase: Math.random() * 9, faceDir: 1 });
+    const group = buildBrainrot(c);
+    const fp = randomFloorPoint(); group.position.set(fp.x, 0, fp.z);
+    group.rotation.y = Math.random() * Math.PI * 2;
+    petGroup.add(group);
+    pets.push({
+      group, char: c, body: group.userData.body, bodyBaseY: group.userData.body ? group.userData.body.scale.y : 1,
+      pupils: group.userData.pupils || [], halo: group.userData.halo,
+      target: randomFloorPoint(), speed: 1.0 + Math.random() * 0.9, attackCd: 5 + Math.random() * 8, phase: Math.random() * 9, rot: group.rotation.y,
+    });
   }
 }
 function updatePets(dt, t) {
   for (const p of pets) {
-    const spr = p.sprite;
-    const dx = p.target.x - spr.position.x, dz = p.target.z - spr.position.z;
+    const g = p.group;
+    const dx = p.target.x - g.position.x, dz = p.target.z - g.position.z;
     const dist = Math.hypot(dx, dz);
-    if (dist < 0.25) p.target = randomFloorPoint();
-    else { const step = Math.min(dist, p.speed * dt); spr.position.x += dx / dist * step; spr.position.z += dz / dist * step; if (Math.abs(dx) > 0.02) p.faceDir = dx > 0 ? 1 : -1; }
-    const jelly = 1 + Math.abs(Math.sin(t * 6 + p.phase)) * 0.1;
-    spr.scale.set(1.05 * p.faceDir, 1.05 * jelly, 1);
-    spr.position.y = 0.55 + Math.abs(Math.sin(t * 6 + p.phase)) * 0.16;
+    let moving = false;
+    if (dist < 0.3) p.target = randomFloorPoint();
+    else {
+      const step = Math.min(dist, p.speed * dt);
+      g.position.x += dx / dist * step; g.position.z += dz / dist * step; moving = true;
+      const targetRot = Math.atan2(dx, dz);
+      let diff = ((targetRot - p.rot + Math.PI) % (Math.PI * 2)) - Math.PI;
+      p.rot += diff * Math.min(1, dt * 6); g.rotation.y = p.rot;
+    }
+    // hop + jelly squash-stretch
+    const hop = Math.abs(Math.sin(t * (moving ? 8 : 3) + p.phase));
+    g.position.y = hop * (moving ? 0.2 : 0.06);
+    if (p.body) p.body.scale.y = p.bodyBaseY * (1 + Math.sin(t * 7 + p.phase) * 0.08);
+    for (const pu of p.pupils) { pu.p.position.x = pu.bx + Math.cos(t * 5 + pu.bx * 9) * 0.03; pu.p.position.y = pu.by + Math.sin(t * 6 + pu.bx * 9) * 0.03; }
+    if (p.halo) p.halo.rotation.z += dt * 1.5;
     p.attackCd -= dt;
     if (p.attackCd <= 0) {
       p.attackCd = 6 + Math.random() * 10;

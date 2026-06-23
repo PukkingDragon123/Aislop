@@ -1,7 +1,9 @@
 // ============================================================================
-//  Bottom toolbar + build sheets: Staff, Decor, Office (+ More/settings).
-//  Employees multiply the zoo's income; decorations add morale; expanding the
-//  office unlocks more desks.
+//  The SHOP — one Cookie-Clicker-style list. Staff, stations, decorations,
+//  upgrades, desk upgrades and office expansions are all just "things you buy",
+//  sorted CHEAPEST → priciest so there's always an obvious next purchase.
+//  Locked items sit dimmed at the bottom so you can see what's coming.
+//  (Goals/achievements + settings live behind their own toolbar buttons.)
 // ============================================================================
 
 import { el, clear } from './dom.js';
@@ -12,34 +14,35 @@ import {
 import { DEPARTMENTS, DECORATIONS, DESK_TIERS, OFFICE_LEVELS, UPGRADES, STATIONS, ACHIEVEMENTS } from '../core/config.js';
 import { fmt, money } from '../core/format.js';
 import * as actions from '../sim/actions.js';
-import { deptPower, computeModifiers, incomePerSec, collectionCount, companyLevel, runStation, isStationActive, stationProgress, stationRate, isAutomated } from '../sim/economy.js';
+import { incomePerSec, companyLevel, isAutomated } from '../sim/economy.js';
 import { achievementProgress, isUnlocked, unlockedCount } from '../sim/achievements.js';
 import { bus } from '../core/events.js';
 import { toast, modal } from './toast.js';
 
-let sheet, sheetTitle, sheetBody, toolbar;
+let sheet, sheetTitle, sheetSub, sheetBody, toolbar;
 let isOpen = false;
 let liveUpdaters = [];
 
-// Everything — upgrades, staff, floor, decor, achievements — lives in ONE panel.
 export function initPanels(container) {
-  sheetTitle = el('div', { class: 'sheet-title', text: 'Manage Company' });
+  sheetTitle = el('div', { class: 'sheet-title', text: '🛒 Build' });
+  sheetSub = el('div', { class: 'shop-sub' });
   sheetBody = el('div', { class: 'sheet-body' });
   sheet = el('div', { class: 'sheet manage hidden' }, [
-    el('div', { class: 'sheet-head' }, [sheetTitle, el('button', { class: 'sheet-close', text: '✕', onclick: closeSheet })]),
+    el('div', { class: 'sheet-head' }, [el('div', { class: 'sheet-headmain' }, [sheetTitle, sheetSub]), el('button', { class: 'sheet-close', text: '✕', onclick: closeSheet })]),
     sheetBody,
   ]);
   toolbar = el('div', { class: 'toolbar' }, [
-    el('button', { class: 'tool-btn big', onclick: toggleManage }, [el('span', { class: 'tool-ico', text: '🏗️' }), el('span', { class: 'tool-label', text: 'Manage' })]),
+    el('button', { class: 'tool-btn big', onclick: toggleManage }, [el('span', { class: 'tool-ico', text: '🛒' }), el('span', { class: 'tool-label', text: 'Build' })]),
+    el('button', { class: 'tool-btn', onclick: openGoals }, [el('span', { class: 'tool-ico', text: '🏅' }), el('span', { class: 'tool-label', text: 'Goals' })]),
     el('button', { class: 'tool-btn', onclick: openSettings }, [el('span', { class: 'tool-ico', text: '⚙️' }), el('span', { class: 'tool-label', text: 'More' })]),
   ]);
   container.append(sheet, toolbar);
-  bus.on('purchase', () => { if (isOpen) renderAll(); });
+  bus.on('purchase', () => { if (isOpen) renderStore(); });
 }
 
 function toggleManage() {
   if (isOpen) { closeSheet(); return; }
-  renderAll();
+  renderStore();
   isOpen = true;
   sheet.classList.remove('hidden');
   requestAnimationFrame(() => sheet.classList.add('show'));
@@ -52,22 +55,98 @@ function closeSheet() {
   toolbar.firstChild.classList.remove('active');
 }
 export function openManage() { if (!isOpen) toggleManage(); }
+export function refresh() { if (isOpen) updateSub(); for (const fn of liveUpdaters) fn(); }
 
-function section(title) { return el('div', { class: 'sheet-section', text: title }); }
+// ---- the unified buyable list ---------------------------------------------
+function buildables() {
+  const out = [];
+  // Staff — hire (repeatable, multiplies income).
+  for (const d of DEPARTMENTS) out.push({
+    key: 'hire-' + d.id, kind: 'staff', icon: d.icon, name: d.name, sub: d.role,
+    desc: 'Hire ' + d.role + ' — multiplies all brainrot income.', accent: d.uiColor, unlockLevel: d.unlockLevel,
+    ownedLabel: () => `${state.depts[d.id].workers} staff`, note: () => (atCapacity() ? 'office full' : null),
+    cost: () => hireCost(d.id), label: 'Hire', buy: () => actions.hire(d.id), canBuy: () => !atCapacity(),
+  });
+  // Desk upgrades — only surface when you have staff and room to grow.
+  for (const d of DEPARTMENTS) out.push({
+    key: 'desk-' + d.id, kind: 'desk', icon: '🪑', name: d.name + ' Desks', sub: 'workstation',
+    desc: () => `Upgrade to ${DESK_TIERS[Math.min(state.depts[d.id].tier + 1, DESK_TIERS.length - 1)].name} — more income per worker.`,
+    accent: d.uiColor, unlockLevel: d.unlockLevel,
+    hide: () => state.depts[d.id].workers <= 0 || state.depts[d.id].tier >= DESK_TIERS.length - 1,
+    ownedLabel: () => DESK_TIERS[state.depts[d.id].tier].name,
+    cost: () => deskUpgradeCost(d.id), label: 'Upgrade', buy: () => actions.upgradeDesk(d.id),
+  });
+  // Stations — build machines; tap them in the office to run (or automate).
+  for (const s of STATIONS) out.push({
+    key: 'stn-' + s.id, kind: 'station', icon: s.icon, name: s.name, sub: 'station',
+    desc: s.desc + (isAutomated() ? ' (running on Auto-Pilot)' : ' Tap it in the zoo to run!'),
+    accent: s.uiColor, unlockLevel: s.unlockLevel, ownedLabel: () => `×${state.stations[s.id] || 0}`,
+    cost: () => stationCost(s.id), label: 'Build', buy: () => actions.buyStation(s.id),
+  });
+  // Decorations — morale / effects.
+  for (const d of DECORATIONS) out.push({
+    key: 'deco-' + d.id, kind: 'deco', icon: d.icon, name: d.name, sub: 'decor',
+    desc: d.desc, accent: '#b18cff', unlockLevel: 0, ownedLabel: () => (state.decorations[d.id] ? `×${state.decorations[d.id]}` : null),
+    cost: () => decoCost(d.id), label: 'Buy', buy: () => actions.buyDecoration(d.id),
+  });
+  // Upgrades — permanent boosts (drop out of the list once maxed).
+  for (const u of UPGRADES) out.push({
+    key: 'up-' + u.id, kind: 'upgrade', icon: u.icon, name: u.name, sub: 'upgrade',
+    desc: u.desc, accent: '#56cfe1', unlockLevel: u.unlockLevel,
+    hide: () => (state.upgrades[u.id] || 0) >= u.max, ownedLabel: () => `Lv ${state.upgrades[u.id] || 0}/${u.max}`,
+    cost: () => upgradeCost(u.id), label: () => ((state.upgrades[u.id] || 0) > 0 ? 'Upgrade' : 'Buy'), buy: () => actions.buyUpgrade(u.id),
+  });
+  // Office expansion — capacity for more staff.
+  out.push({
+    key: 'office', kind: 'office', icon: '🏢', name: 'Expand Office', sub: 'capacity',
+    desc: () => { const n = OFFICE_LEVELS[state.officeLevel + 1]; return n ? `Bigger floor → ${n.name} (${n.capacity} staff).` : 'Largest campus on Earth.'; },
+    accent: '#6c8cff', unlockLevel: 0, hide: () => state.officeLevel >= OFFICE_LEVELS.length - 1,
+    ownedLabel: () => `${totalWorkers()}/${capacity()}`, cost: () => officeUpgradeCost(), label: 'Expand', buy: () => actions.expandOffice(),
+  });
+  return out.filter((b) => !(b.hide && b.hide()));
+}
 
-function renderAll() {
+function val(x) { return typeof x === 'function' ? x() : x; }
+function costNum(b) { const c = b.cost(); return c === Infinity ? Number.MAX_VALUE : c; }
+
+function renderStore() {
   liveUpdaters = [];
   const scrollTop = sheetBody.scrollTop;
   clear(sheetBody);
-  sheetBody.appendChild(section('🏭  Stations'));       renderStations(sheetBody);
-  sheetBody.appendChild(section('⬆️  Upgrades'));      renderUpgrades(sheetBody);
-  sheetBody.appendChild(section('🧑‍💻  Staff'));         renderStaff(sheetBody);
-  sheetBody.appendChild(section('🏢  Floor & Office')); renderOffice(sheetBody);
-  sheetBody.appendChild(section('🪴  Decorations'));    renderDecor(sheetBody);
-  sheetBody.appendChild(section('🏅  Achievements'));   renderAchievements(sheetBody);
+  sheetBody.appendChild(el('div', { class: 'sheet-hint', html: '👆 <b>Tap the office</b> to earn 🪙. Buy anything below — it\'s sorted <b>cheapest first</b>. New stuff unlocks as your company <b>levels up</b>.' }));
+
+  const L = companyLevel();
+  const all = buildables();
+  const ready = all.filter((b) => L >= b.unlockLevel).sort((a, b) => costNum(a) - costNum(b));
+  const locked = all.filter((b) => L < b.unlockLevel).sort((a, b) => (a.unlockLevel - b.unlockLevel) || (costNum(a) - costNum(b)));
+
+  for (const b of ready) sheetBody.appendChild(storeRow(b));
+  if (locked.length) {
+    sheetBody.appendChild(el('div', { class: 'shop-divider', html: `🔒 <span>Unlocks as you level up</span>` }));
+    for (const b of locked) sheetBody.appendChild(lockedRow(b));
+  }
   sheetBody.scrollTop = scrollTop;
+  updateSub();
 }
-export function refresh() { for (const fn of liveUpdaters) fn(); }
+
+function storeRow(b) {
+  const tags = [];
+  const owned = b.ownedLabel && val(b.ownedLabel); if (owned) tags.push(tag(owned, b.accent));
+  const note = b.note && b.note(); if (note) tags.push(tag(note, '#e58b2b'));
+  const c = card({ accent: b.accent, icon: b.icon, title: b.name, sub: val(b.sub), desc: val(b.desc), tags });
+  c.actions.appendChild(buyButton(val(b.label), b.cost, b.buy, { canBuy: b.canBuy }));
+  return c.node;
+}
+function lockedRow(b) {
+  const c = card({ accent: '#9aa6c0', icon: '🔒', title: b.name, sub: val(b.sub), desc: `Unlocks at company Level ${b.unlockLevel}.`, tags: [tag(`🔒 Lv ${b.unlockLevel}`, '#9aa6c0')] });
+  c.node.classList.add('locked-card');
+  return c.node;
+}
+
+function updateSub() {
+  if (!sheetSub) return;
+  sheetSub.innerHTML = `Lv <b>${companyLevel()}</b> · <b>${money(incomePerSec())}</b>/s · ${fmt(totalWorkers())} staff`;
+}
 
 // ---- primitives -----------------------------------------------------------
 function card({ accent = '#6cc6ff', icon, title, sub, desc, tags = [] }) {
@@ -90,136 +169,32 @@ function buyButton(label, getCost, onBuy, { canBuy } = {}) {
     btn.disabled = locked || !(state.money >= cost && cost !== Infinity);
     btn.innerHTML = cost === Infinity ? `<b>${label}</b><span>MAX</span>` : `<b>${label}</b><span>${money(cost)}</span>`;
   };
-  btn.addEventListener('click', () => { const r = onBuy(); if (r && !r.ok) toast(r.reason, { icon: '🚫', color: '#ff7a7a', ms: 2200 }); else renderAll(); });
+  btn.addEventListener('click', () => { const r = onBuy(); if (r && !r.ok) toast(r.reason, { icon: '🚫', color: '#ff7a7a', ms: 2200 }); else renderStore(); });
   liveUpdaters.push(update); update();
   return btn;
 }
 function tag(text, color) { return el('span', { class: 'tag', text, style: { background: color + '22', color } }); }
 
-// ---- STAFF ----------------------------------------------------------------
-function renderStaff(body) {
-  const m = computeModifiers();
-  body.appendChild(el('div', { class: 'sheet-hint', html: `Your computer employees keep the zoo running — they <b>multiply all brainrot income</b>. Current multiplier: <b>×${m.empMult.toFixed(2)}</b>.` }));
-  if (atCapacity()) body.appendChild(el('div', { class: 'sheet-warn', text: `Office full (${totalWorkers()}/${capacity()}). Expand your office to hire more.` }));
-  for (const d of DEPARTMENTS) {
-    const sd = state.depts[d.id];
-    if (companyLevel() < d.unlockLevel) {
-      const lc = card({ accent: '#9aa6c0', icon: '🔒', title: d.name, sub: d.role, desc: `Unlocks at company Level ${d.unlockLevel}.`, tags: [tag(`🔒 Lv ${d.unlockLevel}`, '#9aa6c0')] });
-      lc.node.classList.add('locked-card');
-      body.appendChild(lc.node);
-      continue;
-    }
-    const tier = DESK_TIERS[sd.tier];
-    const nextTier = DESK_TIERS[sd.tier + 1];
-    const tags = [tag(`${sd.workers} staff`, d.uiColor), tag(`+${deptPower(d.id).toFixed(1)} power`, '#9aa6c0'), tag(tier.name, '#9aa6c0')];
-    const c = card({ accent: d.uiColor, icon: d.icon, title: d.name, sub: d.role, desc: d.desc, tags });
-    c.actions.appendChild(buyButton('Hire', () => hireCost(d.id), () => actions.hire(d.id), { canBuy: () => !atCapacity() }));
-    c.actions.appendChild(buyButton(nextTier ? `⬆ ${nextTier.name.replace(' Station', '').replace(' Office', '').replace(' Setup', '')}` : 'Desk',
-      () => deskUpgradeCost(d.id), () => actions.upgradeDesk(d.id), { canBuy: () => sd.workers > 0 && sd.tier < DESK_TIERS.length - 1 }));
-    body.appendChild(c.node);
-  }
-}
-
-// ---- STATIONS -------------------------------------------------------------
-function renderStations(body) {
-  const auto = isAutomated();
-  body.appendChild(el('div', { class: 'sheet-hint', html: auto
-    ? `Stations are machines that print coins. <b>⚙️ Auto-Pilot is ON</b> — they all run themselves now.`
-    : `Stations are machines you <b>tap to run</b> for a burst of coins — tap them in the office, or hit <b>WORK</b> here. Buy <b>Station Auto-Pilot</b> (Upgrades) to automate them.` }));
-  for (const s of STATIONS) {
-    const built = state.stations[s.id] || 0;
-    if (companyLevel() < s.unlockLevel) {
-      const lc = card({ accent: '#9aa6c0', icon: '🔒', title: s.name, desc: `Unlocks at company Level ${s.unlockLevel}.`, tags: [tag(`🔒 Lv ${s.unlockLevel}`, '#9aa6c0')] });
-      lc.node.classList.add('locked-card'); body.appendChild(lc.node); continue;
-    }
-    const tags = [tag(`×${built} built`, s.uiColor)];
-    if (built > 0) tags.push(tag(`${money(stationRate(s.id))}/s active`, '#16c172'));
-    const c = card({ accent: s.uiColor, icon: s.icon, title: s.name, desc: s.desc, tags });
-    c.node.classList.add('station-card');
-    const fill = el('div', { class: 'station-fill', style: { background: s.uiColor } });
-    c.node.querySelector('.card-main').appendChild(el('div', { class: 'station-bar' }, [fill]));
-
-    c.actions.appendChild(buyButton('Build', () => stationCost(s.id), () => actions.buyStation(s.id)));
-    const work = el('button', { class: 'btn btn-work' });
-    const updWork = () => {
-      const active = isStationActive(s.id);
-      work.disabled = built <= 0;
-      if (auto) { work.className = 'btn btn-work auto'; work.innerHTML = '<b>AUTO</b><span>running</span>'; }
-      else { work.className = `btn btn-work ${active ? 'running' : ''}`; work.innerHTML = active ? '<b>RUNNING</b><span>working…</span>' : '<b>WORK</b><span>tap!</span>'; }
-      fill.style.width = `${Math.round(stationProgress(s.id) * 100)}%`;
-    };
-    work.addEventListener('click', () => { if (built <= 0) return; const b = runStation(s.id); if (b > 0) toast('+' + money(b) + ' — working!', { icon: s.icon, color: s.uiColor }); });
-    liveUpdaters.push(updWork); updWork();
-    c.actions.appendChild(work);
-    body.appendChild(c.node);
-  }
-}
-
-// ---- UPGRADES -------------------------------------------------------------
-function renderUpgrades(body) {
-  body.appendChild(el('div', { class: 'sheet-hint', html: `All your permanent boosts in one place — click power, automation, station output and more. New ones unlock as your company <b>levels up</b> (Lv ${companyLevel()}).` }));
-  for (const u of UPGRADES) {
-    const lvl = state.upgrades[u.id] || 0;
-    if (companyLevel() < u.unlockLevel) {
-      const lc = card({ accent: '#9aa6c0', icon: '🔒', title: u.name, desc: `Unlocks at company Level ${u.unlockLevel}.`, tags: [tag(`🔒 Lv ${u.unlockLevel}`, '#9aa6c0')] });
-      lc.node.classList.add('locked-card'); body.appendChild(lc.node); continue;
-    }
-    const tags = [tag(`Lv ${lvl}/${u.max}`, '#56cfe1')];
-    const c = card({ accent: '#56cfe1', icon: u.icon, title: u.name, desc: u.desc, tags });
-    c.actions.appendChild(buyButton(lvl > 0 ? 'Upgrade' : 'Buy', () => upgradeCost(u.id), () => actions.buyUpgrade(u.id), { canBuy: () => lvl < u.max }));
-    body.appendChild(c.node);
-  }
-}
-
-// ---- ACHIEVEMENTS ---------------------------------------------------------
-function renderAchievements(body) {
-  body.appendChild(el('div', { class: 'sheet-hint', html: `Achievements unlocked: <b>${unlockedCount()}/${ACHIEVEMENTS.length}</b>. Each pays out tokens or coins.` }));
-  for (const a of ACHIEVEMENTS) {
+// ---- GOALS (achievements) -------------------------------------------------
+function openGoals() {
+  const rows = ACHIEVEMENTS.map((a) => {
     const done = isUnlocked(a);
     const prog = achievementProgress(a);
     const reward = []; if (a.reward.tokens) reward.push(`${a.reward.tokens}🎟️`); if (a.reward.coins) reward.push(money(a.reward.coins));
-    const tags = [tag(reward.join(' '), '#ffce47')];
-    if (!done) tags.unshift(tag(`${fmt(prog)}/${fmt(a.target)}`, '#9aa6c0'));
-    const c = card({ accent: done ? '#22b573' : '#9aa6c0', icon: done ? '✅' : a.icon, title: a.name, desc: a.desc, tags });
-    if (done) c.actions.appendChild(el('div', { class: 'pill-ok', text: '✓' }));
-    c.node.classList.toggle('locked-card', !done);
-    body.appendChild(c.node);
-  }
-}
-
-// ---- DECOR ----------------------------------------------------------------
-function renderDecor(body) {
-  let morale = 0; for (const d of DECORATIONS) morale += state.decorations[d.id] * d.morale;
-  body.appendChild(el('div', { class: 'sheet-hint', html: `Decorations raise morale, boosting all income. Current bonus: <b>+${Math.round(morale * 100)}%</b>.` }));
-  for (const d of DECORATIONS) {
-    const owned = state.decorations[d.id];
-    const tags = [tag(`+${Math.round(d.morale * 100)}% income`, '#49e07d')];
-    if (owned > 0) tags.push(tag(`owned ×${owned}`, '#9aa6c0'));
-    const c = card({ accent: '#b18cff', icon: d.icon, title: d.name, desc: d.desc, tags });
-    c.actions.appendChild(buyButton('Buy', () => decoCost(d.id), () => actions.buyDecoration(d.id)));
-    body.appendChild(c.node);
-  }
-}
-
-// ---- OFFICE ---------------------------------------------------------------
-function renderOffice(body) {
-  const cur = OFFICE_LEVELS[state.officeLevel];
-  const next = OFFICE_LEVELS[state.officeLevel + 1];
-  body.appendChild(el('div', { class: 'sheet-hint', html: `Your HQ: <b>${cur.name}</b> — ${totalWorkers()}/${cur.capacity} staff. Expanding unlocks more desks.` }));
-  if (next) {
-    const c = card({ accent: '#6c8cff', icon: '🏢', title: `Expand to ${next.name}`, desc: `Capacity ${cur.capacity} → ${next.capacity} staff · larger floor.`, tags: [tag(`+${next.capacity - cur.capacity} desks`, '#49e07d')] });
-    c.actions.appendChild(buyButton('Expand', () => officeUpgradeCost(), () => actions.expandOffice()));
-    body.appendChild(c.node);
-  } else body.appendChild(el('div', { class: 'sheet-warn', text: '🏆 Largest AI campus on Earth. Maxed out.' }));
-  body.appendChild(el('div', { class: 'stat-grid' }, [
-    miniStat('Income', money(incomePerSec()) + '/s'),
-    miniStat('Brainrots', `${collectionCount()}`),
-    miniStat('Lifetime coins', money(state.lifetimeMoney)),
-    miniStat('Viral moments', fmt(state.totalViral)),
-  ]));
-}
-function miniStat(label, value) {
-  return el('div', { class: 'mini-stat' }, [el('div', { class: 'mini-val', text: value }), el('div', { class: 'mini-label', text: label })]);
+    return el('div', { class: `quest-li ${done ? 'done' : ''}` }, [
+      el('div', { class: 'quest-li-ico', text: done ? '✅' : a.icon }),
+      el('div', { class: 'quest-li-main' }, [
+        el('div', { class: 'quest-li-title', text: a.name }),
+        el('div', { class: 'quest-li-desc', text: `${a.desc} · ${reward.join(' ')}${done ? '' : `  ·  ${fmt(prog)}/${fmt(a.target)}`}` }),
+      ]),
+      el('div', { class: 'quest-li-status', text: done ? '✓' : '🔒' }),
+    ]);
+  });
+  modal({
+    title: `🏅 Goals · ${unlockedCount()}/${ACHIEVEMENTS.length}`,
+    bodyNodes: [el('div', { class: 'quest-list' }, rows)],
+    actions: [{ label: 'Close', primary: true }],
+  });
 }
 
 // ---- SETTINGS -------------------------------------------------------------
@@ -233,7 +208,7 @@ function openSettings() {
     ],
     actions: [
       { label: 'Show Save Code', keepOpen: true, onClick: () => { info.value = exportSave(); info.select(); } },
-      { label: 'Import…', keepOpen: true, onClick: () => importFlow() },
+      { label: 'Load / Import…', keepOpen: true, onClick: () => importFlow() },
       { label: 'Reset Game', onClick: () => confirmReset() },
       { label: 'Close', primary: true },
     ],
@@ -241,8 +216,8 @@ function openSettings() {
 }
 function importFlow() {
   const ta = el('textarea', { class: 'save-box', rows: '3', placeholder: 'Paste save code…' });
-  modal({ title: 'Import Save', bodyNodes: [el('p', { class: 'modal-text', text: 'Paste a save code to overwrite your game:' }), ta], actions: [
-    { label: 'Import', primary: true, onClick: () => { try { importSave(ta.value); toast('Save imported! Reloading…'); setTimeout(() => location.reload(), 700); } catch { toast('Invalid save code.', { icon: '🚫', color: '#ff7a7a' }); } } },
+  modal({ title: '📥 Load Save', bodyNodes: [el('p', { class: 'modal-text', text: 'Paste a save code to load that game (replaces your current zoo):' }), ta], actions: [
+    { label: 'Load Save', primary: true, onClick: () => { try { importSave(ta.value); toast('Save loaded! Reloading…'); setTimeout(() => location.reload(), 700); } catch { toast('Invalid save code.', { icon: '🚫', color: '#ff7a7a' }); } } },
     { label: 'Cancel' },
   ] });
 }
