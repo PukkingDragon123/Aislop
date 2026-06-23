@@ -6,13 +6,13 @@
 
 import { el, clear } from './dom.js';
 import {
-  state, hireCost, deskUpgradeCost, decoCost, officeUpgradeCost, upgradeCost,
+  state, hireCost, deskUpgradeCost, decoCost, officeUpgradeCost, upgradeCost, stationCost,
   capacity, totalWorkers, atCapacity, saveState, resetState, exportSave, importSave,
 } from '../core/state.js';
-import { DEPARTMENTS, DECORATIONS, DESK_TIERS, OFFICE_LEVELS, UPGRADES, ACHIEVEMENTS } from '../core/config.js';
+import { DEPARTMENTS, DECORATIONS, DESK_TIERS, OFFICE_LEVELS, UPGRADES, STATIONS, ACHIEVEMENTS } from '../core/config.js';
 import { fmt, money } from '../core/format.js';
 import * as actions from '../sim/actions.js';
-import { deptPower, computeModifiers, incomePerSec, collectionCount, companyLevel } from '../sim/economy.js';
+import { deptPower, computeModifiers, incomePerSec, collectionCount, companyLevel, runStation, isStationActive, stationProgress, stationRate, isAutomated } from '../sim/economy.js';
 import { achievementProgress, isUnlocked, unlockedCount } from '../sim/achievements.js';
 import { bus } from '../core/events.js';
 import { toast, modal } from './toast.js';
@@ -59,6 +59,7 @@ function renderAll() {
   liveUpdaters = [];
   const scrollTop = sheetBody.scrollTop;
   clear(sheetBody);
+  sheetBody.appendChild(section('🏭  Stations'));       renderStations(sheetBody);
   sheetBody.appendChild(section('⬆️  Upgrades'));      renderUpgrades(sheetBody);
   sheetBody.appendChild(section('🧑‍💻  Staff'));         renderStaff(sheetBody);
   sheetBody.appendChild(section('🏢  Floor & Office')); renderOffice(sheetBody);
@@ -119,9 +120,44 @@ function renderStaff(body) {
   }
 }
 
+// ---- STATIONS -------------------------------------------------------------
+function renderStations(body) {
+  const auto = isAutomated();
+  body.appendChild(el('div', { class: 'sheet-hint', html: auto
+    ? `Stations are machines that print coins. <b>⚙️ Auto-Pilot is ON</b> — they all run themselves now.`
+    : `Stations are machines you <b>tap to run</b> for a burst of coins — tap them in the office, or hit <b>WORK</b> here. Buy <b>Station Auto-Pilot</b> (Upgrades) to automate them.` }));
+  for (const s of STATIONS) {
+    const built = state.stations[s.id] || 0;
+    if (companyLevel() < s.unlockLevel) {
+      const lc = card({ accent: '#9aa6c0', icon: '🔒', title: s.name, desc: `Unlocks at company Level ${s.unlockLevel}.`, tags: [tag(`🔒 Lv ${s.unlockLevel}`, '#9aa6c0')] });
+      lc.node.classList.add('locked-card'); body.appendChild(lc.node); continue;
+    }
+    const tags = [tag(`×${built} built`, s.uiColor)];
+    if (built > 0) tags.push(tag(`${money(stationRate(s.id))}/s active`, '#16c172'));
+    const c = card({ accent: s.uiColor, icon: s.icon, title: s.name, desc: s.desc, tags });
+    c.node.classList.add('station-card');
+    const fill = el('div', { class: 'station-fill', style: { background: s.uiColor } });
+    c.node.querySelector('.card-main').appendChild(el('div', { class: 'station-bar' }, [fill]));
+
+    c.actions.appendChild(buyButton('Build', () => stationCost(s.id), () => actions.buyStation(s.id)));
+    const work = el('button', { class: 'btn btn-work' });
+    const updWork = () => {
+      const active = isStationActive(s.id);
+      work.disabled = built <= 0;
+      if (auto) { work.className = 'btn btn-work auto'; work.innerHTML = '<b>AUTO</b><span>running</span>'; }
+      else { work.className = `btn btn-work ${active ? 'running' : ''}`; work.innerHTML = active ? '<b>RUNNING</b><span>working…</span>' : '<b>WORK</b><span>tap!</span>'; }
+      fill.style.width = `${Math.round(stationProgress(s.id) * 100)}%`;
+    };
+    work.addEventListener('click', () => { if (built <= 0) return; const b = runStation(s.id); if (b > 0) toast('+' + money(b) + ' — working!', { icon: s.icon, color: s.uiColor }); });
+    liveUpdaters.push(updWork); updWork();
+    c.actions.appendChild(work);
+    body.appendChild(c.node);
+  }
+}
+
 // ---- UPGRADES -------------------------------------------------------------
 function renderUpgrades(body) {
-  body.appendChild(el('div', { class: 'sheet-hint', html: `Permanent boosts bought with coins. More unlock as your company <b>levels up</b> (Lv ${companyLevel()}).` }));
+  body.appendChild(el('div', { class: 'sheet-hint', html: `All your permanent boosts in one place — click power, automation, station output and more. New ones unlock as your company <b>levels up</b> (Lv ${companyLevel()}).` }));
   for (const u of UPGRADES) {
     const lvl = state.upgrades[u.id] || 0;
     if (companyLevel() < u.unlockLevel) {

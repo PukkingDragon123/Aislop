@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { ACHIEVEMENTS } from '../core/config.js';
-import { state, totalWorkers } from '../core/state.js';
+import { state, totalWorkers, totalStations, stationTypesOwned } from '../core/state.js';
 import { bus } from '../core/events.js';
 import { collectionCount, companyLevel } from './economy.js';
 import { maxLevel, ownsRarityAtLeast, RARITY_RANK } from './gacha.js';
@@ -26,6 +26,10 @@ function statValue(stat) {
     case 'level': return companyLevel();
     case 'bullies': return state.bullies;
     case 'office': return state.officeLevel;
+    case 'stations': return totalStations();
+    case 'stationtypes': return stationTypesOwned();
+    case 'autopilot': return (state.upgrades.autopilot || 0) > 0 ? 1 : 0;
+    case 'cleaned': return state.cleaned || 0;
     default: return 0;
   }
 }

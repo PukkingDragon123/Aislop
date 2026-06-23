@@ -3,8 +3,8 @@
 //  { ok, reason } and emits an event the 3D world reacts to.
 // ============================================================================
 
-import { state, hireCost, deskUpgradeCost, decoCost, officeUpgradeCost, upgradeCost, atCapacity } from '../core/state.js';
-import { DESK_TIERS, OFFICE_LEVELS, DEPARTMENTS, UPGRADES } from '../core/config.js';
+import { state, hireCost, deskUpgradeCost, decoCost, officeUpgradeCost, upgradeCost, stationCost, atCapacity } from '../core/state.js';
+import { DESK_TIERS, OFFICE_LEVELS, DEPARTMENTS, UPGRADES, STATION_BY_ID } from '../core/config.js';
 import { companyLevel } from './economy.js';
 import { bus } from '../core/events.js';
 
@@ -55,6 +55,18 @@ export function buyUpgrade(id) {
   state.upgrades[id]++;
   bus.emit('upgradeBought', { id, level: state.upgrades[id] });
   return done({ cost, level: state.upgrades[id] });
+}
+
+export function buyStation(id) {
+  const s = STATION_BY_ID[id];
+  if (!s) return fail('Unknown station.');
+  if (companyLevel() < s.unlockLevel) return fail(`Unlocks at Level ${s.unlockLevel}.`);
+  const cost = stationCost(id);
+  if (state.money < cost) return fail('Not enough coins.');
+  state.money -= cost;
+  state.stations[id] = (state.stations[id] || 0) + 1;
+  bus.emit('stationBuilt', { id, count: state.stations[id] });
+  return done({ cost, count: state.stations[id] });
 }
 
 export function expandOffice() {

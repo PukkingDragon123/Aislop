@@ -50,6 +50,7 @@ export const DECORATIONS = [
   { id: 'coffee',   name: 'Coffee Machine',  icon: '☕', cost: 250,     morale: 0.05, desc: '+5% income. The true engine of the company.' },
   { id: 'food',     name: 'Snack Bar',       icon: '🍔', cost: 700,     morale: 0.07, desc: '+7% income. Employees wander over for a bite.' },
   { id: 'vending',  name: 'Vending Machine', icon: '🥤', cost: 600,     morale: 0.06, desc: '+6% income. Snacks fuel the slop.' },
+  { id: 'janitor',  name: 'Janitor Bot',     icon: '🧹', cost: 3000,    morale: 0.04, janitor: true, cleanEvery: 7, desc: 'Auto-sweeps trash off the floor. Trash drags your income down — keep it clean!' },
   { id: 'printer',  name: 'Cash Printer',    icon: '🖨️', cost: 1200,    morale: 0.0,  coinPerSec: 5, desc: 'Prints flat coins/sec — scales with your company level.' },
   { id: 'billboard',name: 'Hype Billboard',  icon: '📢', cost: 5000,    morale: 0.03, folMult: 0.25, desc: '+25% follower gain (and a little morale).' },
   { id: 'whip',     name: 'Bully-Bot 3000',  icon: '🥊', cost: 1800,    morale: 0.05, chaos: true, desc: 'Whips nearby employees into shape. Tap it to bully them.' },
@@ -125,6 +126,21 @@ export const ROSTER = [
 ];
 export const ROSTER_BY_ID = Object.fromEntries(ROSTER.map((c) => [c.id, c]));
 
+// ----------------------------------------------------------------------------
+//  STATIONS — cookie-clicker "machines". Build them with coins, then CLICK to
+//  spin one up for a short burst of coins (tap it in the office or hit WORK).
+//  Buy the ⚙️ Station Auto-Pilot upgrade and they run on their own forever.
+//  `rate` = coins/sec PER built unit while running (scales with company level).
+// ----------------------------------------------------------------------------
+export const STATIONS = [
+  { id: 'render',  name: 'Render Farm',  icon: '🖥️', color: '#4fa3ff', uiColor: '#4fa3ff', unlockLevel: 0,  baseCost: 150,    growth: 1.18, rate: 4,     runFor: 8,  desc: 'Renders slop in bulk. Tap to spin it up.' },
+  { id: 'meme',    name: 'Meme Forge',   icon: '😹', color: '#ff8d3b', uiColor: '#ff8d3b', unlockLevel: 2,  baseCost: 2200,   growth: 1.20, rate: 30,    runFor: 8,  desc: 'Stamps out fresh memes. Tap to fire it up.' },
+  { id: 'stream',  name: 'Stream Booth', icon: '📡', color: '#b06bff', uiColor: '#b06bff', unlockLevel: 5,  baseCost: 45000,  growth: 1.22, rate: 260,   runFor: 9,  desc: 'Goes live to the whole feed. Tap to broadcast.' },
+  { id: 'mint',    name: 'Coin Mint',    icon: '🏭', color: '#ffce47', uiColor: '#ffb020', unlockLevel: 9,  baseCost: 900000, growth: 1.24, rate: 2400,  runFor: 9,  desc: 'Literally prints money. Tap to mint.' },
+  { id: 'reactor', name: 'Slop Reactor', icon: '☢️', color: '#49e07d', uiColor: '#16c172', unlockLevel: 14, baseCost: 2.2e7,  growth: 1.26, rate: 22000, runFor: 10, desc: 'Fuses raw brainrot into pure profit. Tap to ignite.' },
+];
+export const STATION_BY_ID = Object.fromEntries(STATIONS.map((s) => [s.id, s]));
+
 // Economy tuning.
 export const ECON = {
   empPower: 0.10,         // each unit of employee output adds this to the income multiplier
@@ -149,6 +165,10 @@ export const ECON = {
   levelBaseXp: 120,       // coins to clear level 1
   levelGrowth: 1.42,      // XP requirement growth per level
   levelIncomeBonus: 0.04, // +4% global income per company level
+  // Trash / janitor — messes pile up and drag income down until cleaned.
+  messPenaltyPer: 0.05,   // each pile of trash on the floor: -5% income
+  messFloor: 0.4,         // …but income never drops below 40% from trash alone
+  stationLevelScale: 0.4, // station output bonus per company level
 };
 
 // ----------------------------------------------------------------------------
@@ -158,11 +178,15 @@ export const ECON = {
 export const UPGRADES = [
   { id: 'clickpower',name: 'Click Power',       icon: '👆', unlockLevel: 0,  baseCost: 80,     growth: 1.55, max: 80, desc: '+60% coins per click per level.',  apply: (l, e) => { e.clickPower *= 1 + 0.6 * l; } },
   { id: 'autoclick', name: 'Auto-Manager',      icon: '🤖', unlockLevel: 1,  baseCost: 1200,   growth: 1.85, max: 40, desc: 'Auto-clicks +1/sec per level — idles for you!', apply: (l, e) => { e.autoClick += l; } },
+  { id: 'autopilot', name: 'Station Auto-Pilot',icon: '⚙️', unlockLevel: 3,  baseCost: 9000,   growth: 1,    max: 1,  desc: 'Your stations run on their own — no more tapping to work them!', apply: (l, e) => { e.automation = 1; } },
+  { id: 'overclock', name: 'Station Overclock', icon: '🔧', unlockLevel: 4,  baseCost: 6000,   growth: 1.8,  max: 40, desc: '+35% station output per level.',    apply: (l, e) => { e.stationMult *= 1 + 0.35 * l; } },
   { id: 'gpu',       name: 'Better GPUs',       icon: '🖥️', unlockLevel: 0,  baseCost: 300,    growth: 1.7, max: 60, desc: '+12% brainrot income per level.',  apply: (l, e) => { e.income *= 1 + 0.12 * l; } },
   { id: 'training',  name: 'Employee Training', icon: '🎓', unlockLevel: 0,  baseCost: 800,    growth: 1.85, max: 50, desc: '+10% employee multiplier per level.', apply: (l, e) => { e.emp *= 1 + 0.10 * l; } },
+  { id: 'momentum',  name: 'Momentum Engine',   icon: '🌀', unlockLevel: 7,  baseCost: 150000, growth: 2.0, max: 50, desc: '+7% global income per level.',      apply: (l, e) => { e.income *= 1 + 0.07 * l; } },
   { id: 'cooling',   name: 'Liquid Cooling',    icon: '❄️', unlockLevel: 3,  baseCost: 4000,   growth: 1.9, max: 40, desc: '+15% morale effectiveness per level.', apply: (l, e) => { e.morale *= 1 + 0.15 * l; } },
   { id: 'algo',      name: 'Algorithm Hacking', icon: '📈', unlockLevel: 4,  baseCost: 12000,  growth: 2.0, max: 40, desc: '+20% follower gain per level.',     apply: (l, e) => { e.followers *= 1 + 0.20 * l; } },
-  { id: 'viralbot',  name: 'Viral Bot Farm',    icon: '🤖', unlockLevel: 6,  baseCost: 60000,  growth: 2.1, max: 25, desc: '+0.5% viral chance per level.',     apply: (l, e) => { e.viralChance += 0.005 * l; } },
+  { id: 'jackpot',   name: 'Jackpot Mode',      icon: '🎰', unlockLevel: 11, baseCost: 1.2e6,  growth: 2.2, max: 20, desc: '+4× viral multiplier per level.',   apply: (l, e) => { e.viralMult += 4 * l; } },
+  { id: 'viralbot',  name: 'Viral Bot Farm',    icon: '🛰️', unlockLevel: 6,  baseCost: 60000,  growth: 2.1, max: 25, desc: '+0.5% viral chance per level.',     apply: (l, e) => { e.viralChance += 0.005 * l; } },
   { id: 'luck',      name: 'Lucky Rolls',       icon: '🍀', unlockLevel: 8,  baseCost: 200000, growth: 2.2, max: 20, desc: 'Better gacha rarity odds (+ luck/level).', apply: (l, e) => { e.luck += 0.06 * l; } },
   { id: 'servers',   name: 'Offline Servers',   icon: '☁️', unlockLevel: 5,  baseCost: 40000,  growth: 2.0, max: 20, desc: '+25% offline earnings per level.',  apply: (l, e) => { e.offline *= 1 + 0.25 * l; } },
   { id: 'recruiter', name: 'AI Recruiter',      icon: '🧑‍💼', unlockLevel: 10, baseCost: 500000, growth: 2.3, max: 15, desc: '+1 token from every quest per level.', apply: (l, e) => { e.questTokens += l; } },
@@ -198,6 +222,11 @@ export const ACHIEVEMENTS = [
   { id: 'lvl25',     icon: '👑', name: 'Slop Mogul',       desc: 'Reach company Level 25',       stat: 'level',    target: 25,     reward: { tokens: 25 } },
   { id: 'bully25',   icon: '👆', name: 'Micromanager',     desc: 'Click to work 100 times',      stat: 'bullies',  target: 100,    reward: { tokens: 5 } },
   { id: 'office',    icon: '🌆', name: 'Mega-Campus',      desc: 'Reach the AI Mega-Campus',     stat: 'office',   target: 5,      reward: { tokens: 30 } },
+  { id: 'station1',  icon: '🖥️', name: 'Powered Up',       desc: 'Build your first station',     stat: 'stations', target: 1,      reward: { tokens: 3 } },
+  { id: 'station20', icon: '🏭', name: 'Slop Factory',     desc: 'Build 20 stations',            stat: 'stations', target: 20,     reward: { tokens: 12 } },
+  { id: 'stationall',icon: '⚙️', name: 'Full Production',  desc: 'Own every type of station',    stat: 'stationtypes', target: 5,  reward: { tokens: 18 } },
+  { id: 'autopilot', icon: '🛸', name: 'Hands Off',        desc: 'Buy Station Auto-Pilot',       stat: 'autopilot',target: 1,      reward: { tokens: 10 } },
+  { id: 'clean50',   icon: '🧹', name: 'Spotless',         desc: 'Clean up 50 messes',           stat: 'cleaned',  target: 50,     reward: { tokens: 8 } },
 ];
 
 // QUESTS — completing them awards Tokens (the gacha currency) + coins.
@@ -207,8 +236,9 @@ export const QUESTS = [
   { id: 'collect3',icon: '🦓', title: 'Open the zoo',        desc: 'Own 3 brainrots',             target: 3,     stat: 'owned',   reward: { tokens: 3, coins: 250 } },
   { id: 'hire',    icon: '🧑‍💻', title: 'Staff up',            desc: 'Employ 8 workers',            target: 8,     stat: 'staff',   reward: { tokens: 3 } },
   { id: 'level3',  icon: '⭐', title: 'Level up a star',     desc: 'Get any brainrot to Lv 3',    target: 3,     stat: 'maxlvl',  reward: { tokens: 4, coins: 1000 } },
+  { id: 'station', icon: '🖥️', title: 'Power up',            desc: 'Build a station',             target: 1,     stat: 'stations',reward: { tokens: 4, coins: 500 } },
   { id: 'income',  icon: '🪙', title: 'Money printer',       desc: 'Reach 200 coins/sec',         target: 200,   stat: 'income',  reward: { tokens: 5 } },
-  { id: 'dopamine',icon: '🤯', title: 'Feel the rush',       desc: 'Trigger a Dopamine Spike',    target: 1,     stat: 'spikes',  reward: { tokens: 5, coins: 5000 } },
+  { id: 'auto',    icon: '⚙️', title: 'Set it and forget it',desc: 'Run 5 stations at once',      target: 5,     stat: 'stations',reward: { tokens: 6, coins: 5000 } },
   { id: 'collect8',icon: '🏆', title: 'Crowd favourite',     desc: 'Own 8 brainrots',             target: 8,     stat: 'owned',   reward: { tokens: 6 } },
   { id: 'epic',    icon: '💜', title: 'Rarity hunter',       desc: 'Collect an Epic or better',   target: 1,     stat: 'epic',    reward: { tokens: 8, coins: 25000 } },
   { id: 'fans',    icon: '📈', title: 'Going viral',         desc: 'Reach 100K followers',        target: 100000,stat: 'fans',    reward: { tokens: 8 } },

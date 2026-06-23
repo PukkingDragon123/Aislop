@@ -5,7 +5,7 @@
 // ============================================================================
 
 import * as THREE from '../vendor/three.module.js';
-import { DESK_TIERS } from '../core/config.js';
+import { DESK_TIERS, STATION_BY_ID } from '../core/config.js';
 
 // --- material / geometry caches (shared, big perf win with many workers) ----
 const matCache = new Map();
@@ -183,6 +183,16 @@ export function buildDecoration(id) {
         g.add(at(box(0.42, 0.06, 0.02, 0xffd166, { emissive: 0xffd166, ei: 0.5 }), 0, 0.7 + i * 0.32, 0.39));
       break;
     }
+    case 'janitor': {
+      g.add(at(cyl(0.3, 0.36, 0.5, 0x49c5d6, { metal: 0.3 }), 0, 0.25, 0)); // bot body
+      g.add(at(cyl(0.36, 0.36, 0.08, 0x2b2f36), 0, 0.04, 0));               // wheel base
+      const head = at(sphere(0.26, 0xeef3fb, { detail: 2, rough: 0.3 }), 0, 0.78, 0); g.add(head);
+      g.add(at(sphere(0.06, 0x223, { emissive: 0x6cc6ff, ei: 0.8 }), -0.1, 0.8, 0.2));
+      g.add(at(sphere(0.06, 0x223, { emissive: 0x6cc6ff, ei: 0.8 }), 0.1, 0.8, 0.2));
+      const pole = at(cyl(0.03, 0.03, 0.85, 0x8a5a2b), 0.34, 0.5, 0.22); pole.rotation.z = 0.42; g.add(pole);
+      g.add(at(box(0.3, 0.16, 0.14, 0xffd166, { rough: 0.7 }), 0.6, 0.16, 0.3)); // broom head
+      break;
+    }
     case 'sofa': {
       g.add(at(box(1.7, 0.4, 0.8, 0x6c8cff, { rough: 0.85 }), 0, 0.3, 0));
       g.add(at(box(1.7, 0.5, 0.2, 0x5b7af0, { rough: 0.85 }), 0, 0.6, -0.3));
@@ -290,5 +300,42 @@ export function buildDecoration(id) {
     default:
       g.add(at(box(0.6, 0.6, 0.6, 0xcccccc), 0, 0.3, 0));
   }
+  return g;
+}
+
+// ---------------------------------------------------------------------------
+//  Stations — chunky "machines" you tap to run. `userData.glow` is the front
+//  panel office.js lights up while the station is active.
+// ---------------------------------------------------------------------------
+export function buildStation(id) {
+  const s = STATION_BY_ID[id];
+  const col = s ? s.color : '#8aa0c8';
+  const g = new THREE.Group();
+  g.add(at(box(1.2, 1.35, 0.92, 0x2c3550, { rough: 0.6, metal: 0.2 }), 0, 0.7, 0)); // cabinet
+  g.add(at(box(1.3, 0.16, 1.0, 0x222a40), 0, 1.42, 0));                              // top cap
+  const panel = at(box(0.92, 0.66, 0.05, col, { emissive: col, ei: 0.2 }), 0, 0.85, 0.47);
+  panel.castShadow = false; g.add(panel);
+  const lights = [];
+  for (let i = 0; i < 3; i++) {
+    const led = at(box(0.1, 0.1, 0.03, col, { emissive: col, ei: 0.35, noShadow: true }), -0.3 + i * 0.3, 1.22, 0.48);
+    led.castShadow = false; g.add(led); lights.push(led);
+  }
+  g.add(at(cyl(0.12, 0.16, 0.5, 0x39406a, { metal: 0.3 }), 0.44, 1.62, -0.1)); // funnel
+  g.userData.stationId = id;
+  g.userData.glow = panel;
+  g.userData.lights = lights;
+  return g;
+}
+
+// A small pile of floor trash. Tap it (or let a janitor) to clear it.
+export function buildTrash() {
+  const g = new THREE.Group();
+  const cols = [0x8a8f9c, 0xb08d57, 0x6f7a4a, 0xc56b6b];
+  const c = cols[(Math.random() * cols.length) | 0];
+  g.add(at(box(0.4, 0.26, 0.4, c, { rough: 0.95 }), 0, 0.13, 0));
+  g.add(at(box(0.22, 0.2, 0.22, 0xe4ddcc, { rough: 0.95 }), 0.15, 0.3, 0.06)); // crumpled paper
+  const can = at(cyl(0.08, 0.1, 0.2, 0x6fae5a, { rough: 0.8 }), -0.14, 0.2, 0.12); can.rotation.z = 0.5; g.add(can);
+  g.scale.setScalar(0.9 + Math.random() * 0.4);
+  g.rotation.y = Math.random() * Math.PI * 2;
   return g;
 }

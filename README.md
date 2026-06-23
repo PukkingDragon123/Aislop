@@ -37,20 +37,29 @@ No `npm install` — Three.js is vendored in `src/vendor/`.
 - **👆 Click to work:** tap the office (or your employees) for an instant coin
   payout — they pop and get to work. Buy the **🤖 Auto-Manager** upgrade to
   automate the clicking so it idles for you.
+- **🏭 Stations:** build cookie-clicker machines (Render Farm, Meme Forge, Coin
+  Mint…) then **tap them to run** for a burst of coins. Buy the **⚙️ Station
+  Auto-Pilot** upgrade and they run themselves forever.
+- **🧹 Mess & janitor:** trash piles up on the floor and **drags your income
+  down** — tap it to sweep it, or buy a **Janitor Bot** to auto-clean.
 - **🎟️ Tokens** come from **quests** — tap the quest chip up top to see your goal.
   Quests guide you and pay tokens (the gacha currency) + coins.
-- **🏗️ Manage** (one button → one panel): upgrades, staff, floor expansion, decor
-  and achievements all live in a single scrollable place. Employees **multiply
-  income**, decorations add morale/effects, expanding unlocks more desks. Staff
-  are **3D potato characters** with big stupid googly eyes and **drunk wobble
-  physics** (spring-sway, stumbles, ragdoll flops). **Tap to make them work.**
+- **🏗️ Manage** (one button → one panel): **stations, all upgrades, staff, floor
+  expansion, decor and achievements** live in a single scrollable place.
+  Employees **multiply income**, decorations add morale/effects, expanding
+  unlocks more desks. Staff are **3D potato characters** with big stupid googly
+  eyes and **drunk wobble physics** (spring-sway, stumbles, ragdoll flops).
+  **Tap to make them work.**
 - **🦓 Pets & chaos:** your owned brainrots **roam the floor as pets**, wandering
   and **attacking employees**. Buy chaos props — a **🦖 Office Dino**, a **🧨 TNT
   Crate**, a **🥊 Bully-Bot** — and **tap them** to detonate / stomp / whip everyone
   flat. Plus a ☕ coffee machine and 🍔 snack bar for the staff.
-- **🐋 Orca Tank:** every few minutes an investor offer pops up — pitch your startup
-  (your choice changes the payout) for a cash injection. A tutorial NPC shows you
-  the ropes on first run.
+- **🐋 Events:** an investor **🐋 Orca Tank** pitch, a **🦝 Sketchy Dealer** with
+  risky deals (mystery crates, double-or-nothing), and **🧑‍💻 employee problems**
+  (pay them off, throw a pizza party, or ignore it and watch the meltdown).
+  A tutorial NPC shows you the ropes on first run.
+- **📥 Saves:** everything **autosaves** locally; **Load Save** (menu or settings)
+  imports a save code, and you keep earning **offline** (capped at 8h).
 - **📈 Progression:** lifetime coins are **XP** — your **company Level** ticks up
   (bar in the HUD), giving a permanent income bonus and **unlocking new
   departments & upgrades** as you climb. Buy a tree of permanent **Upgrades**

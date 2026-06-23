@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { QUESTS } from '../core/config.js';
-import { state, totalWorkers } from '../core/state.js';
+import { state, totalWorkers, totalStations } from '../core/state.js';
 import { bus } from '../core/events.js';
 import { incomePerSec, getUpgradeEffects } from './economy.js';
 import { ownedCount, maxLevel, ownsRarityAtLeast, RARITY_RANK } from './gacha.js';
@@ -16,7 +16,7 @@ function statValue(stat) {
     case 'staff': return totalWorkers();
     case 'maxlvl': return maxLevel();
     case 'income': return incomePerSec();
-    case 'spikes': return state.spikes;
+    case 'stations': return totalStations();
     case 'epic': return ownsRarityAtLeast(RARITY_RANK.epic) ? 1 : 0;
     case 'fans': return state.followers;
     default: return 0;

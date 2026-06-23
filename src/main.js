@@ -10,8 +10,8 @@ import { initEffects, updateEffects, confettiBurst, screenShake, floatingText } 
 import { tick, computeOffline, getRates, getViralTimer, initLevel } from './sim/economy.js';
 import { checkQuests, QUESTS } from './sim/quests.js';
 import { checkAchievements } from './sim/achievements.js';
-import { loadState, saveState, resetState, state } from './core/state.js';
-import { ECON, RARITIES, DEPARTMENTS, UPGRADES } from './core/config.js';
+import { loadState, saveState, resetState, importSave, state } from './core/state.js';
+import { ECON, RARITIES, DEPARTMENTS, UPGRADES, STATION_BY_ID } from './core/config.js';
 import { bus } from './core/events.js';
 import { money, fmt, duration } from './core/format.js';
 import { el } from './ui/dom.js';
@@ -20,7 +20,7 @@ import { initPanels, refresh as refreshPanels } from './ui/panels.js';
 import { initToasts, toast, banner, modal } from './ui/toast.js';
 import { initGacha, openGacha, refreshGacha } from './ui/gacha.js';
 import { showMenu } from './ui/menu.js';
-import { startTutorial, orcaTankOffer } from './ui/dialogue.js';
+import { startTutorial, orcaTankOffer, dealerOffer, employeeProblem } from './ui/dialogue.js';
 
 let office, pendingOffline = null, isFresh = false, playing = false;
 
@@ -44,7 +44,20 @@ function start() {
   wireEvents();
   startLoop();
 
-  showMenu({ fresh, onPlay: startGame, onTutorial: () => startTutorial(), onReset: confirmReset });
+  showMenu({ fresh, onPlay: startGame, onTutorial: () => startTutorial(), onReset: confirmReset, onLoad: loadSaveFlow });
+}
+
+// Paste a save code to load a game (works from the menu or settings).
+function loadSaveFlow() {
+  const ta = el('textarea', { class: 'save-box', rows: '3', placeholder: 'Paste a save code…' });
+  modal({
+    title: '📥 Load Save',
+    bodyNodes: [el('p', { class: 'modal-text', text: 'Paste a save code to load that game. This replaces your current zoo.' }), ta],
+    actions: [
+      { label: 'Load Save', primary: true, onClick: () => { try { importSave(ta.value); toast('Save loaded! Reloading…', { icon: '📥' }); setTimeout(() => location.reload(), 700); } catch { toast('Invalid save code.', { icon: '🚫', color: '#ff7a7a' }); } } },
+      { label: 'Cancel' },
+    ],
+  });
 }
 
 function startGame() {
@@ -68,7 +81,7 @@ function showOffline(s) {
 }
 
 function wireEvents() {
-  bus.on('viral', () => { banner('VIRAL MOMENT!', `The whole zoo is trending (${ECON.viralMultiplier}× income)`, { icon: '🔥' }); screenShake(1.2); flash('rgba(255,120,60,.35)'); confettiBurst(office.randomCelebrationPos(), 140, 1.2); });
+  bus.on('viral', ({ multiplier }) => { banner('VIRAL MOMENT!', `The whole zoo is trending (${multiplier || ECON.viralMultiplier}× income)`, { icon: '🔥' }); screenShake(1.2); flash('rgba(255,120,60,.35)'); confettiBurst(office.randomCelebrationPos(), 140, 1.2); });
   bus.on('milestone', (ms) => { banner(ms.label, ms.blurb, { icon: '🎉' }); for (let i = 0; i < 3; i++) setTimeout(() => confettiBurst(office.randomCelebrationPos(), 120, 1.2), i * 160); });
 
   bus.on('pull', ({ results }) => {
@@ -86,7 +99,8 @@ function wireEvents() {
 
   bus.on('deskUpgraded', () => toast('Workstations upgraded ✨', { icon: '⬆️', color: '#56cfe1' }));
   bus.on('officeExpanded', () => { toast('Office expanded — more room for chaos!', { icon: '🏢' }); screenShake(0.8); });
-  bus.on('upgradeBought', () => toast('Upgrade purchased ⬆️', { icon: '⬆️', color: '#56cfe1' }));
+  bus.on('upgradeBought', ({ id }) => { if (id === 'autopilot') { banner('AUTO-PILOT ONLINE', 'Your stations now run themselves!', { icon: '⚙️' }); confettiBurst(office.randomCelebrationPos(), 120, 1.2); } else toast('Upgrade purchased ⬆️', { icon: '⬆️', color: '#56cfe1' }); });
+  bus.on('stationBuilt', ({ id, count }) => { const s = STATION_BY_ID[id]; toast(`${s.icon} ${s.name} built (×${count})`, { icon: '🏭', color: s.uiColor }); screenShake(0.4); });
 
   bus.on('levelUp', ({ level }) => {
     banner(`LEVEL ${level}!`, 'Company leveled up — all income boosted', { icon: '🎖️' });
@@ -105,7 +119,7 @@ function wireEvents() {
 }
 
 function startLoop() {
-  let saveTimer = 0, panelTimer = 0, floatTimer = 0, metaTimer = 0, orcaTimer = 210;
+  let saveTimer = 0, panelTimer = 0, floatTimer = 0, metaTimer = 0, orcaTimer = 210, eventTimer = 130;
   let floatCoins = 0;
   bus.on('earn', (p) => { floatCoins += p.coins; });
 
@@ -128,7 +142,15 @@ function startLoop() {
       if (floatCoins > 0) { floatingText(office.randomCelebrationPos(), '+' + money(floatCoins), getViralTimer() > 0 ? '#ffd166' : '#ffe08a'); floatCoins = 0; }
     }
 
-    if (playing) { orcaTimer -= dt; if (orcaTimer <= 0) { orcaTimer = 200 + Math.random() * 120; orcaTankOffer(); } }
+    if (playing) {
+      orcaTimer -= dt; if (orcaTimer <= 0) { orcaTimer = 200 + Math.random() * 120; orcaTankOffer(); }
+      eventTimer -= dt;
+      if (eventTimer <= 0) {
+        eventTimer = 110 + Math.random() * 90;
+        if (Math.random() < 0.5) dealerOffer({ onMess: (n) => { office.makeMess(n); screenShake(0.5); } });
+        else employeeProblem({ onTantrum: () => { office.ragdollSome(2); office.makeMess(2); screenShake(0.9); } });
+      }
+    }
 
     saveTimer -= dt;
     if (saveTimer <= 0) { saveTimer = ECON.saveInterval; saveState(); }

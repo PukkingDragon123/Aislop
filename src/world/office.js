@@ -7,17 +7,19 @@
 // ============================================================================
 
 import * as THREE from '../vendor/three.module.js';
-import { DEPARTMENTS, DECORATIONS, OFFICE_LEVELS, PALETTE, ROSTER_BY_ID, RARITIES } from '../core/config.js';
+import { DEPARTMENTS, DECORATIONS, OFFICE_LEVELS, STATIONS, PALETTE, ROSTER_BY_ID, RARITIES } from '../core/config.js';
 import { state } from '../core/state.js';
 import { bus } from '../core/events.js';
-import { buildDesk, buildDecoration } from './furniture.js';
+import { buildDesk, buildDecoration, buildStation, buildTrash } from './furniture.js';
 import { Worker } from './worker.js';
 import { BigScreen } from './screen.js';
 import { setCameraTarget, fitView, getCamera, getRenderer } from './scene.js';
 import { throwProjectile, confettiBurst, screenShake, floatingText } from './effects.js';
-import { companyLevel, click as workClick } from '../sim/economy.js';
+import { companyLevel, click as workClick, runStation, isStationActive, grantCash } from '../sim/economy.js';
 import { randomMeme, memeFromChar, renderMemeCanvas } from '../sim/brainrot.js';
 import { money } from '../core/format.js';
+
+const JANITOR_DEF = DECORATIONS.find((d) => d.id === 'janitor');
 
 const TILE = 2.2;
 const SIDE_MARGIN = 1.6;   // gap from side walls
@@ -34,6 +36,8 @@ let deskGroup = new THREE.Group();
 let workerGroup = new THREE.Group();
 let decoGroup = new THREE.Group();
 const petGroup = new THREE.Group();       // roaming brainrot pets
+const stationGroup = new THREE.Group();   // tappable cookie-clicker machines
+const trashGroup = new THREE.Group();     // floor messes the janitor cleans
 
 let layout;
 const desks = {};       // deptId -> [{mesh, pos}]
@@ -41,6 +45,9 @@ const workers = {};     // deptId -> [Worker]
 let decos = [];         // [{mesh, id}]
 let chaosProps = [];    // [{mesh, id}] tappable/troll decorations
 let pets = [];          // [{sprite, char, ...}] roaming brainrots
+let stationMeshes = []; // [{mesh, id, glow, lights, pulse}]
+let trash = [];         // [{mesh}] floor messes
+let janitorTimer = 0, trashTimer = 16;
 const animated = [];    // decoration meshes with userData animation flags
 const raycaster = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
@@ -60,18 +67,21 @@ const TICKERS = [
 export function initOffice(sceneRef) {
   scene = sceneRef;
   scene.add(root);
-  root.add(structure, deskGroup, workerGroup, decoGroup, petGroup);
+  root.add(structure, deskGroup, workerGroup, decoGroup, petGroup, stationGroup, trashGroup);
   rebuildAll();
+  rebuildStations();
   refreshPets();
+  state.mess = 0; // floor starts clean on load
   setupTap();
 
   bus.on('hired', ({ deptId }) => addWorkerAndDesk(deptId, state.depts[deptId].workers - 1));
   bus.on('deskUpgraded', ({ deptId }) => rebuildDepartmentDesks(deptId));
   bus.on('decoAdded', ({ id }) => addDecoration(id, state.decorations[id] - 1));
-  bus.on('officeExpanded', () => { rebuildAll(); refreshPets(); });
+  bus.on('stationBuilt', () => rebuildStations());
+  bus.on('officeExpanded', () => { rebuildAll(); rebuildStations(); clearTrash(); refreshPets(); });
   bus.on('pull', () => refreshPets());
 
-  return { update, getScreenPos: () => bigScreen.group.position, randomCelebrationPos };
+  return { update, getScreenPos: () => bigScreen.group.position, randomCelebrationPos, ragdollSome, makeMess };
 }
 
 // ---------------------------------------------------------------------------
@@ -302,11 +312,92 @@ function randomCelebrationPos() {
 }
 
 // ---------------------------------------------------------------------------
+//  Stations — one machine per owned station type, in a row near the back wall.
+// ---------------------------------------------------------------------------
+function stationSlot(i, total) {
+  const z = -layout.D / 2 + 1.75;          // back walkway, in front of the screen
+  const x = (i - (total - 1) / 2) * 1.85;
+  return { x, z };
+}
+function rebuildStations() {
+  clearGroup(stationGroup);
+  stationMeshes = [];
+  const owned = STATIONS.filter((s) => (state.stations[s.id] || 0) > 0);
+  owned.forEach((s, i) => {
+    const mesh = buildStation(s.id);
+    const slot = stationSlot(i, owned.length);
+    mesh.position.set(slot.x, 0, slot.z);
+    // Independent materials so we can pulse this machine's glow alone.
+    if (mesh.userData.glow) mesh.userData.glow.material = mesh.userData.glow.material.clone();
+    if (mesh.userData.lights) mesh.userData.lights = mesh.userData.lights.map((l) => { l.material = l.material.clone(); return l; });
+    stationGroup.add(mesh);
+    stationMeshes.push({ mesh, id: s.id, glow: mesh.userData.glow, lights: mesh.userData.lights, pulse: Math.random() * 9 });
+  });
+}
+
+// ---------------------------------------------------------------------------
+//  Trash / janitor — messes pile up, drag income down, get tapped (or swept).
+// ---------------------------------------------------------------------------
+function syncMess() { state.mess = trash.length; }
+function spawnTrash() {
+  if (trash.length >= 12 || !layout) return;
+  const mesh = buildTrash();
+  const fp = randomFloorPoint();
+  mesh.position.set(fp.x, 0, fp.z);
+  trashGroup.add(mesh);
+  trash.push({ mesh });
+  syncMess();
+}
+function makeMess(n = 1) { for (let i = 0; i < n; i++) spawnTrash(); }
+function removeTrash(entry) {
+  const i = trash.indexOf(entry); if (i < 0) return false;
+  trash.splice(i, 1); trashGroup.remove(entry.mesh); syncMess();
+  return true;
+}
+function clearTrash() { for (const e of trash) trashGroup.remove(e.mesh); trash = []; syncMess(); }
+function tapClean(entry) {
+  const p = entry.mesh.position.clone();
+  if (!removeTrash(entry)) return;
+  state.cleaned = (state.cleaned || 0) + 1;
+  confettiBurst(new THREE.Vector3(p.x, 0.7, p.z), 16, 0.5);
+  const reward = 5 * (1 + companyLevel());
+  grantCash(reward);
+  floatingText(new THREE.Vector3(p.x, 1.1, p.z), '🧽 +' + money(reward), '#19b6e6');
+}
+function updateTrash(dt) {
+  // Janitor bots sweep automatically; more bots = faster.
+  const jan = state.decorations.janitor || 0;
+  if (jan > 0 && trash.length) {
+    janitorTimer -= dt;
+    if (janitorTimer <= 0) {
+      janitorTimer = Math.max(1.2, (JANITOR_DEF ? JANITOR_DEF.cleanEvery : 7) / jan);
+      const e = trash[0]; const p = e.mesh.position.clone();
+      if (removeTrash(e)) { state.cleaned = (state.cleaned || 0) + 1; confettiBurst(new THREE.Vector3(p.x, 0.7, p.z), 8, 0.4); }
+    }
+  }
+  // New messes appear over time — busier offices get messier.
+  trashTimer -= dt;
+  if (trashTimer <= 0) {
+    const workerCount = flatWorkers().length;
+    trashTimer = 11 + Math.random() * 13 - Math.min(6, workerCount * 0.3);
+    if (workerCount > 0) spawnTrash();
+  }
+}
+
+// Knock a few random workers over (used by employee-problem events).
+function ragdollSome(n = 1) {
+  const all = flatWorkers();
+  for (let i = 0; i < n && all.length; i++) all[(Math.random() * all.length) | 0].ragdoll();
+}
+
+// ---------------------------------------------------------------------------
 //  Per-frame update
 // ---------------------------------------------------------------------------
 function update(dt, t) {
   for (const id in workers) for (const w of workers[id]) w.update(dt, t);
   updatePets(dt, t);
+  updateStations(dt, t);
+  updateTrash(dt);
 
   // Ambient decoration animation.
   for (const m of animated) {
@@ -350,6 +441,23 @@ export function setScreenData(rates, viral) {
 }
 
 function flatWorkers() { const a = []; for (const id in workers) for (const w of workers[id]) a.push(w); return a; }
+
+// Light up a station's panel + LEDs while it's running; idle ones sit dim.
+function updateStations(dt, t) {
+  for (const st of stationMeshes) {
+    const active = isStationActive(st.id);
+    if (st.glow) {
+      const target = active ? 1.15 : 0.12;
+      const mat = st.glow.material;
+      mat.emissiveIntensity += (target - mat.emissiveIntensity) * Math.min(1, dt * 6);
+    }
+    if (st.lights) {
+      const on = active && Math.sin(t * 9 + st.pulse) > 0;
+      for (const led of st.lights) led.material.emissiveIntensity = on ? 1.0 : 0.18;
+    }
+    st.mesh.position.y = active ? Math.abs(Math.sin(t * 13 + st.pulse)) * 0.045 : 0;
+  }
+}
 
 function triggerChaos() {
   // Chaos props (dino / TNT / bully-bot) occasionally go off on their own.
@@ -446,6 +554,32 @@ function handleTap(e) {
   ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
   ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
   raycaster.setFromCamera(ndc, getCamera());
+
+  // Stations: tap to make them WORK (run for a burst). Auto-Pilot keeps them on.
+  if (stationMeshes.length) {
+    const sHits = raycaster.intersectObjects(stationMeshes.map((s) => s.mesh), true);
+    if (sHits.length) {
+      let o = sHits[0].object; while (o && !(o.userData && o.userData.stationId)) o = o.parent;
+      if (o && o.userData.stationId) {
+        const burst = runStation(o.userData.stationId);
+        const p = o.position;
+        floatingText(new THREE.Vector3(p.x, 2.0, p.z), '+' + money(burst), '#ffd166');
+        confettiBurst(new THREE.Vector3(p.x, 1.6, p.z), 14, 0.6);
+        screenShake(0.3);
+        return;
+      }
+    }
+  }
+
+  // Trash: tap to sweep it up (small reward, removes the income drag).
+  if (trash.length) {
+    const tHits = raycaster.intersectObjects(trash.map((e) => e.mesh), true);
+    if (tHits.length) {
+      let o = tHits[0].object; while (o && o.parent !== trashGroup) o = o.parent;
+      const entry = trash.find((e) => e.mesh === o);
+      if (entry) { tapClean(entry); return; }
+    }
+  }
 
   // Chaos props detonate when tapped.
   const propHits = raycaster.intersectObjects(chaosProps.map((p) => p.mesh), true);

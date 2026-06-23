@@ -12,7 +12,7 @@ const FLOATERS = ['🦈', '🐊', '☕', '🩰', '🍌', '🪿', '🤖', '🎮',
 let overlay;
 let dioTimer = null;
 
-export function showMenu({ fresh, onPlay, onTutorial, onReset }) {
+export function showMenu({ fresh, onPlay, onTutorial, onReset, onLoad }) {
   overlay = el('div', { class: 'menu' });
 
   // Drifting meme background.
@@ -60,6 +60,7 @@ export function showMenu({ fresh, onPlay, onTutorial, onReset }) {
     ]),
     el('div', { class: 'menu-links' }, [
       el('button', { class: 'menu-link', text: '❓ How to play', onclick: () => close(onTutorial) }),
+      el('button', { class: 'menu-link', text: '📥 Load Save', onclick: () => onLoad && onLoad() }),
       el('button', { class: 'menu-link', text: '🗑 Reset', onclick: () => onReset && onReset() }),
     ]),
     el('div', { class: 'menu-foot', text: 'a cozy idle tycoon · made with Three.js' }),

@@ -4,7 +4,7 @@
 //  (won from quests, spent on gacha). The collection maps brainrotId -> level.
 // ============================================================================
 
-import { DEPARTMENTS, DECORATIONS, OFFICE_LEVELS, DESK_TIERS, ROSTER, UPGRADES, ECON } from './config.js';
+import { DEPARTMENTS, DECORATIONS, OFFICE_LEVELS, DESK_TIERS, ROSTER, UPGRADES, STATIONS, ECON } from './config.js';
 
 const SAVE_KEY = 'aislop.save.v2';
 
@@ -17,6 +17,8 @@ export function defaultState() {
   for (const d of DECORATIONS) decorations[d.id] = 0;
   const upgrades = {};
   for (const u of UPGRADES) upgrades[u.id] = 0;
+  const stations = {};
+  for (const s of STATIONS) stations[s.id] = 0;
 
   return {
     version: 2,
@@ -27,11 +29,14 @@ export function defaultState() {
     totalViral: 0,
     pulls: 0,              // gacha pulls performed
     bullies: 0,            // employees bullied (for an achievement)
+    cleaned: 0,            // messes swept up (for an achievement)
+    mess: 0,               // trash piles currently on the floor (income drag)
     questStep: 0,
     officeLevel: 0,
     depts,
     decorations,
     upgrades,
+    stations,              // station id -> number built
     collection: { chimpanzini: 1 }, // start with one common exhibit
     achievements: {},      // unlocked achievement ids
     milestonesHit: {},
@@ -62,8 +67,12 @@ function reconcile(saved) {
   for (const d of DECORATIONS) s.decorations[d.id] = clampInt(saved.decorations?.[d.id], 0);
   s.upgrades = {};
   for (const u of UPGRADES) s.upgrades[u.id] = clampInt(saved.upgrades?.[u.id], 0, u.max);
+  s.stations = {};
+  for (const st of STATIONS) s.stations[st.id] = clampInt(saved.stations?.[st.id], 0);
   s.achievements = { ...(saved.achievements || {}) };
   s.bullies = clampInt(saved.bullies, 0);
+  s.cleaned = clampInt(saved.cleaned, 0);
+  s.mess = 0; // transient: the office recomputes this at runtime
   s.collection = {};
   for (const c of ROSTER) if (saved.collection?.[c.id]) s.collection[c.id] = clampInt(saved.collection[c.id], 1);
   if (Object.keys(s.collection).length === 0) s.collection = { chimpanzini: 1 };
@@ -75,7 +84,6 @@ function reconcile(saved) {
   s.lifetimeMoney = numOr(saved.lifetimeMoney, 0);
   s.totalViral = numOr(saved.totalViral, 0);
   s.pulls = clampInt(saved.pulls, 0);
-  s.spikes = clampInt(saved.spikes, 0);
   s.questStep = clampInt(saved.questStep, 0);
   s.startTime = numOr(saved.startTime, Date.now());
   s.lastSeen = numOr(saved.lastSeen, Date.now());
@@ -133,6 +141,12 @@ export function upgradeCost(id) {
   if (lvl >= u.max) return Infinity;
   return Math.floor(u.baseCost * Math.pow(u.growth, lvl));
 }
+export function stationCost(id) {
+  const s = STATIONS.find((x) => x.id === id);
+  return Math.floor(s.baseCost * Math.pow(s.growth, state.stations[id] || 0));
+}
+export function totalStations() { return STATIONS.reduce((n, s) => n + (state.stations[s.id] || 0), 0); }
+export function stationTypesOwned() { return STATIONS.reduce((n, s) => n + ((state.stations[s.id] || 0) > 0 ? 1 : 0), 0); }
 
 // --- derived ---------------------------------------------------------------
 export function totalWorkers() { return DEPARTMENTS.reduce((s, d) => s + state.depts[d.id].workers, 0); }

@@ -1,13 +1,12 @@
 // ============================================================================
-//  Worker — a 3D potato employee. Lumpy oval body, big stupid googly eyes, and
-//  gloriously DRUNK wobble physics: spring-based sway that overshoots, random
-//  stumbles, floppy legs, ragdoll tip-overs and flailing fights.
+//  Worker — a 3D potato employee. Lumpy oval body + big stupid googly eyes +
+//  stubby legs. No arms, no nose — just a wobbly drunk potato. Spring-damped
+//  sway that overshoots, random stumbles, ragdoll tip-overs and fights.
 // ============================================================================
 
 import * as THREE from '../vendor/three.module.js';
 import { sphere, cyl } from './furniture.js';
 
-const SKINS = [0xf6c79b, 0xe0a86f, 0xc68642, 0x8d5524, 0xffe0bd];
 let _id = 0;
 
 export class Worker {
@@ -19,17 +18,12 @@ export class Worker {
     this.requestErrand = opts.requestErrand || (() => null);
 
     this.state = 'work';
-    this.stateTimer = 0;
     this.errandCooldown = 4 + Math.random() * 8;
     this.path = [];
     this.speed = 2.0 + Math.random() * 0.9;
     this.phase = Math.random() * Math.PI * 2;
-    this.carry = false;
 
-    // drunk physics state (spring-damped sway/lean)
-    this.sway = 0; this.swayV = 0;
-    this.lean = 0;
-    this.bob = 0; this.squash = 0;
+    this.sway = 0; this.swayV = 0; this.lean = 0; this.bob = 0; this.squash = 0;
     this.stumbleTimer = 2 + Math.random() * 4;
     this.eyeJ = [{ x: 0, y: 0 }, { x: 0, y: 0 }];
 
@@ -40,41 +34,28 @@ export class Worker {
 
   _build(color) {
     const g = new THREE.Group();
-    const rig = new THREE.Group(); g.add(rig); this.rig = rig; // everything that wobbles
-    const skin = SKINS[(Math.random() * SKINS.length) | 0];
+    const rig = new THREE.Group(); g.add(rig); this.rig = rig;
 
     // Potato body — lumpy oval.
     const body = sphere(0.44, color, { detail: 1, rough: 0.7 });
     body.scale.set(1.05, 1.32, 0.95); body.position.y = 0.6;
-    rig.add(body); this.body = body;
-    body.userData.worker = this; // for tap raycast convenience
+    rig.add(body); this.body = body; body.userData.worker = this;
 
-    // Stubby legs (swing for the drunk stagger).
+    // Stubby legs.
     this.legL = new THREE.Group(); this.legR = new THREE.Group();
     this.legL.position.set(-0.16, 0.3, 0); this.legR.position.set(0.16, 0.3, 0);
     const leg = () => { const m = cyl(0.09, 0.11, 0.32, 0x3a4a5a); m.position.y = -0.16; return m; };
     this.legL.add(leg()); this.legR.add(leg()); rig.add(this.legL, this.legR);
 
-    // Tiny arms (flail in fights).
-    this.armL = new THREE.Group(); this.armR = new THREE.Group();
-    this.armL.position.set(-0.42, 0.7, 0); this.armR.position.set(0.42, 0.7, 0);
-    const arm = () => { const m = cyl(0.07, 0.08, 0.3, color); m.position.y = -0.15; return m; };
-    this.armL.add(arm()); this.armR.add(arm()); rig.add(this.armL, this.armR);
-
     // Big stupid googly eyes.
     this.pupils = [];
     for (const dx of [-0.17, 0.17]) {
       const eye = sphere(0.15, 0xffffff, { detail: 2, rough: 0.2 });
-      eye.position.set(dx, 0.78, 0.34); eye.scale.z = 0.7; rig.add(eye);
+      eye.position.set(dx, 0.8, 0.34); eye.scale.z = 0.7; rig.add(eye);
       const pupil = sphere(0.07, 0x101014, { detail: 1 });
-      pupil.position.set(dx, 0.78, 0.46); rig.add(pupil);
+      pupil.position.set(dx, 0.8, 0.46); rig.add(pupil);
       this.pupils.push({ p: pupil, bx: dx });
     }
-
-    // Carried token (errands).
-    const tk = new THREE.Group();
-    tk.add(sphere(0.12, 0xffffff, { detail: 1, noShadow: true }));
-    tk.position.set(0, 1.0, 0.3); tk.visible = false; rig.add(tk); this.token = tk;
 
     g.scale.setScalar(0.96);
     g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
@@ -89,13 +70,11 @@ export class Worker {
     this._googly(dt);
   }
 
-  // Spring the sway toward a target → floppy, overshooting, drunk motion.
   _springSway(target, dt, stiff = 60, damp = 8) {
     this.swayV += (target - this.sway) * stiff * dt;
     this.swayV *= Math.max(0, 1 - damp * dt);
     this.sway += this.swayV * dt;
   }
-
   _applyRig() {
     this.rig.rotation.z = this.sway;
     this.rig.rotation.x = this.lean;
@@ -103,14 +82,13 @@ export class Worker {
     const sq = 1 + this.squash;
     this.body.scale.set(1.05 / Math.sqrt(sq), 1.32 * sq, 0.95 / Math.sqrt(sq));
   }
-
   _googly(dt) {
     for (let i = 0; i < 2; i++) {
       const j = this.eyeJ[i];
       j.x += (Math.random() - 0.5) * dt * 1.6; j.y += (Math.random() - 0.5) * dt * 1.6;
       j.x = clamp(j.x, -0.05, 0.05); j.y = clamp(j.y, -0.05, 0.05);
       const pu = this.pupils[i];
-      pu.p.position.x = pu.bx + j.x; pu.p.position.y = 0.78 + j.y;
+      pu.p.position.x = pu.bx + j.x; pu.p.position.y = 0.8 + j.y;
     }
   }
 
@@ -119,25 +97,19 @@ export class Worker {
     g.position.x += (this.home.x - g.position.x) * Math.min(1, dt * 5);
     g.position.z += (this.home.z - g.position.z) * Math.min(1, dt * 5);
     this._turnTo(this.facing, dt);
-    // gentle drunk idle sway
     this._springSway(Math.sin(t * 1.5 + this.phase) * 0.12, dt, 40, 7);
     this.lean += (0 - this.lean) * Math.min(1, dt * 5);
     this.bob += (Math.sin(t * 2 + this.phase) * 0.02 - this.bob) * Math.min(1, dt * 6);
     this.squash += (0 - this.squash) * Math.min(1, dt * 6);
     this.legL.rotation.x = this.legR.rotation.x = 0;
-    this.armL.rotation.x = this.armR.rotation.x = 0; this.armL.rotation.z = this.armR.rotation.z = 0;
-    this.token.visible = false;
     this._applyRig();
-
-    // random stumble for flavour
     this.stumbleTimer -= dt;
     if (this.stumbleTimer <= 0) { this.stumbleTimer = 3 + Math.random() * 5; this.swayV += (Math.random() - 0.5) * 8; }
-
     this.errandCooldown -= dt;
     if (this.errandCooldown <= 0) {
       this.errandCooldown = 7 + Math.random() * 12;
       const e = this.requestErrand(this);
-      if (e) { this.carry = !!e.carry; this._startWalk([e, this.home]); }
+      if (e) this._startWalk([e, this.home]);
     }
   }
 
@@ -147,25 +119,20 @@ export class Worker {
     const g = this.group;
     if (this._pause > 0) { this._pause -= dt; this._work(0, t); this.state = 'walk'; return; }
     const next = this.path[0];
-    if (!next) { this.state = 'work'; this.carry = false; return; }
+    if (!next) { this.state = 'work'; return; }
     const dx = next.x - g.position.x, dz = next.z - g.position.z;
     const dist = Math.hypot(dx, dz);
-    if (dist < 0.1) { g.position.x = next.x; g.position.z = next.z; this._pause = next.pause; this.path.shift(); if (!this.path.length) { this.state = 'work'; this.carry = false; } return; }
+    if (dist < 0.1) { g.position.x = next.x; g.position.z = next.z; this._pause = next.pause; this.path.shift(); if (!this.path.length) this.state = 'work'; return; }
     const step = Math.min(dist, this.speed * dt);
     g.position.x += (dx / dist) * step; g.position.z += (dz / dist) * step;
-    this._turnTo(Math.atan2(dx, dz), dt * 0.6); // turns lazily (drunk)
-
+    this._turnTo(Math.atan2(dx, dz), dt * 0.6);
     const p = t * 8 + this.phase;
-    // exaggerated drunk sway: big oscillation + slow drift, sprung so it lags/overshoots
     this._springSway(Math.sin(p) * 0.35 + Math.sin(t * 0.8 + this.phase) * 0.12, dt, 70, 6);
     this.lean += (0.16 - this.lean) * Math.min(1, dt * 5);
     this.bob += (Math.abs(Math.sin(p)) * 0.13 - this.bob) * Math.min(1, dt * 10);
     this.legL.rotation.x = Math.sin(p) * 0.9; this.legR.rotation.x = -Math.sin(p) * 0.9;
-    this.armL.rotation.z = 0.4 + Math.sin(p) * 0.2; this.armR.rotation.z = -0.4 - Math.sin(p) * 0.2;
     this.squash += (0 - this.squash) * Math.min(1, dt * 6);
-    this.token.visible = this.carry;
     this._applyRig();
-
     this.stumbleTimer -= dt;
     if (this.stumbleTimer <= 0) { this.stumbleTimer = 2 + Math.random() * 3; this.swayV += (Math.random() - 0.5) * 12; }
   }
@@ -175,13 +142,12 @@ export class Worker {
     this.state = 'ragdoll'; this.stateTimer = 1.5 + Math.random() * 1.2;
     this._rdir = Math.random() < 0.5 ? 1 : -1;
   }
-  _ragdoll(dt, t) {
+  _ragdoll(dt) {
     this.stateTimer -= dt;
     const want = this.stateTimer > 0.5 ? 1 : Math.max(0, this.stateTimer / 0.5);
     this.sway += (this._rdir * 1.5 * want - this.sway) * Math.min(1, dt * 12);
     this.bob += (-0.3 * want - this.bob) * Math.min(1, dt * 10);
     this.squash += ((want > 0.4 ? 0.2 : 0) - this.squash) * Math.min(1, dt * 8);
-    this.armL.rotation.z = 1.2 * want; this.armR.rotation.z = -1.2 * want;
     this._applyRig();
     if (this.stateTimer <= 0) this.state = 'work';
   }
@@ -197,11 +163,10 @@ export class Worker {
     const lunge = Math.sin(t * 16 + this.phase) * 0.5 + 0.5;
     this.group.position.x += ((this._h0.x + (this._ft.x - this._h0.x) * 0.16 * lunge) - this.group.position.x) * Math.min(1, dt * 12);
     this.group.position.z += ((this._h0.z + (this._ft.z - this._h0.z) * 0.16 * lunge) - this.group.position.z) * Math.min(1, dt * 12);
-    this.sway = Math.sin(t * 24) * 0.3;
-    this.armL.rotation.x = Math.sin(t * 26) * 1.8; this.armR.rotation.x = Math.cos(t * 26) * 1.8;
-    this.bob = Math.abs(Math.sin(t * 20)) * 0.1;
+    this.sway = Math.sin(t * 24) * 0.35;
+    this.bob = Math.abs(Math.sin(t * 20)) * 0.12;
     this._applyRig();
-    if (this.stateTimer <= 0) { this.state = 'work'; }
+    if (this.stateTimer <= 0) this.state = 'work';
   }
 
   workPop() { if (this.state === 'work' || this.state === 'walk') { this.squash = -0.28; this.swayV += (Math.random() - 0.5) * 4; } }
