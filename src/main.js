@@ -130,7 +130,7 @@ function wireEvents() {
 }
 
 function startLoop() {
-  let saveTimer = 0, panelTimer = 0, floatTimer = 0, metaTimer = 0, orcaTimer = 210, eventTimer = 130;
+  let saveTimer = 0, panelTimer = 0, floatTimer = 0, metaTimer = 0, orcaTimer = 300, eventTimer = 240;
   let floatCoins = 0;
   bus.on('earn', (p) => { floatCoins += p.coins; });
 
@@ -154,10 +154,10 @@ function startLoop() {
     }
 
     if (playing) {
-      orcaTimer -= dt; if (orcaTimer <= 0) { orcaTimer = 200 + Math.random() * 120; orcaTankOffer(); }
+      orcaTimer -= dt; if (orcaTimer <= 0) { orcaTimer = 300 + Math.random() * 180; orcaTankOffer(); }
       eventTimer -= dt;
       if (eventTimer <= 0) {
-        eventTimer = 110 + Math.random() * 90;
+        eventTimer = 240 + Math.random() * 150;
         if (Math.random() < 0.5) dealerOffer({ onMess: (n) => { office.makeMess(n); screenShake(0.5); } });
         else employeeProblem({ onTantrum: () => { office.ragdollSome(2); office.makeMess(2); screenShake(0.9); } });
       }

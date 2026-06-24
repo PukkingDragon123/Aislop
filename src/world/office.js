@@ -17,7 +17,6 @@ import { setCameraTarget, fitView, getCamera, getRenderer } from './scene.js';
 import { throwProjectile, confettiBurst, screenShake, floatingText } from './effects.js';
 import { companyLevel, click as workClick, runStation, isStationActive, grantCash } from '../sim/economy.js';
 import { randomMeme, memeFromChar } from '../sim/brainrot.js';
-import { buildBrainrot } from './brainrot3d.js';
 import { sClick, sStation, sClean } from '../core/sfx.js';
 import { money } from '../core/format.js';
 
@@ -37,7 +36,6 @@ let structure = new THREE.Group();        // floor + walls (rebuilt on expand)
 let deskGroup = new THREE.Group();
 let workerGroup = new THREE.Group();
 let decoGroup = new THREE.Group();
-const petGroup = new THREE.Group();       // roaming brainrot pets
 const stationGroup = new THREE.Group();   // tappable cookie-clicker machines
 const trashGroup = new THREE.Group();     // floor messes the janitor cleans
 
@@ -46,10 +44,9 @@ const desks = {};       // deptId -> [{mesh, pos}]
 const workers = {};     // deptId -> [Worker]
 let decos = [];         // [{mesh, id}]
 let chaosProps = [];    // [{mesh, id}] tappable/troll decorations
-let pets = [];          // [{sprite, char, ...}] roaming brainrots
 let stationMeshes = []; // [{mesh, id, glow, lights, pulse}]
 let trash = [];         // [{mesh}] floor messes
-let janitorTimer = 0, trashTimer = 16;
+let janitorTimer = 0, trashTimer = 26;
 const animated = [];    // decoration meshes with userData animation flags
 const raycaster = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
@@ -68,10 +65,9 @@ const TICKERS = [
 export function initOffice(sceneRef) {
   scene = sceneRef;
   scene.add(root);
-  root.add(structure, deskGroup, workerGroup, decoGroup, petGroup, stationGroup, trashGroup);
+  root.add(structure, deskGroup, workerGroup, decoGroup, stationGroup, trashGroup);
   rebuildAll();
   rebuildStations();
-  refreshPets();
   state.mess = 0; // floor starts clean on load
   setupTap();
 
@@ -79,8 +75,7 @@ export function initOffice(sceneRef) {
   bus.on('deskUpgraded', ({ deptId }) => rebuildDepartmentDesks(deptId));
   bus.on('decoAdded', ({ id }) => addDecoration(id, state.decorations[id] - 1));
   bus.on('stationBuilt', () => rebuildStations());
-  bus.on('officeExpanded', () => { rebuildAll(); rebuildStations(); clearTrash(); refreshPets(); });
-  bus.on('pull', () => refreshPets());
+  bus.on('officeExpanded', () => { rebuildAll(); rebuildStations(); clearTrash(); });
 
   return { update, getScreenPos: () => bigScreen.group.position, randomCelebrationPos, ragdollSome, makeMess };
 }
@@ -341,7 +336,7 @@ function rebuildStations() {
 // ---------------------------------------------------------------------------
 function syncMess() { state.mess = trash.length; }
 function spawnTrash() {
-  if (trash.length >= 12 || !layout) return;
+  if (trash.length >= 10 || !layout) return;
   const mesh = buildTrash();
   const fp = randomFloorPoint();
   mesh.position.set(fp.x, 0, fp.z);
@@ -377,11 +372,11 @@ function updateTrash(dt) {
       if (removeTrash(e)) { state.cleaned = (state.cleaned || 0) + 1; confettiBurst(new THREE.Vector3(p.x, 0.7, p.z), 8, 0.4); }
     }
   }
-  // New messes appear over time — busier offices get messier.
+  // New messes appear slowly over time — low-maintenance, not a chore.
   trashTimer -= dt;
   if (trashTimer <= 0) {
     const workerCount = flatWorkers().length;
-    trashTimer = 11 + Math.random() * 13 - Math.min(6, workerCount * 0.3);
+    trashTimer = 24 + Math.random() * 20 - Math.min(8, workerCount * 0.4);
     if (workerCount > 0) spawnTrash();
   }
 }
@@ -397,7 +392,6 @@ function ragdollSome(n = 1) {
 // ---------------------------------------------------------------------------
 function update(dt, t) {
   for (const id in workers) for (const w of workers[id]) w.update(dt, t);
-  updatePets(dt, t);
   updateStations(dt, t);
   updateTrash(dt);
 
@@ -413,10 +407,10 @@ function update(dt, t) {
     if (u.spark) { u.spark.material.emissiveIntensity = 0.6 + Math.random() * 0.9; u.spark.visible = Math.random() > 0.12; }
   }
 
-  // CHAOS — sloppy employees randomly get knocked flat, or square up and start
-  // flinging office supplies at each other.
+  // CHAOS — sloppy employees occasionally get knocked flat, or square up and
+  // fling office supplies at each other. Kept rare so the office stays calm.
   chaosTimer -= dt;
-  if (chaosTimer <= 0) { chaosTimer = 5 + Math.random() * 7; triggerChaos(); }
+  if (chaosTimer <= 0) { chaosTimer = 11 + Math.random() * 12; triggerChaos(); }
 
   // The big screen alternates between a live stats dashboard and full-screen
   // brainrot memes, so the office always has something animated playing.
@@ -434,7 +428,7 @@ function update(dt, t) {
 }
 
 const screenData = { rates: { money: 0 }, viral: false };
-let screenMode = 'stats', screenModeTimer = 8, currentMeme = null, animT = 0, chaosTimer = 5;
+let screenMode = 'stats', screenModeTimer = 8, currentMeme = null, animT = 0, chaosTimer = 11;
 
 // Pushed in from the main loop each frame.
 export function setScreenData(rates, viral) {
@@ -498,68 +492,8 @@ function triggerProp(prop) {
   }
 }
 
-// ---- roaming brainrot pets (now characterful 3D models) -------------------
+// A random point on the floor — used to scatter trash messes.
 function randomFloorPoint() { return { x: (Math.random() - 0.5) * layout.W * 0.7, z: (Math.random() - 0.5) * layout.D * 0.55 }; }
-function refreshPets() {
-  const ids = Object.keys(state.collection).slice(0, 12); // cap visible pets
-  for (const p of pets) petGroup.remove(p.group);
-  pets = [];
-  for (const id of ids) {
-    const c = ROSTER_BY_ID[id]; if (!c) continue;
-    const group = buildBrainrot(c);
-    const fp = randomFloorPoint(); group.position.set(fp.x, 0, fp.z);
-    group.rotation.y = Math.random() * Math.PI * 2;
-    petGroup.add(group);
-    const ud = group.userData;
-    pets.push({
-      group, char: c, body: ud.body, bodyBaseScale: ud.bodyBaseScale, eyes: ud.eyes || [], pupils: ud.pupils || [], arms: ud.arms || [], halo: ud.halo,
-      target: randomFloorPoint(), speed: 1.0 + Math.random() * 0.9, attackCd: 5 + Math.random() * 8, phase: Math.random() * 9, rot: group.rotation.y,
-      blinkT: 1 + Math.random() * 4, blinkA: 0,
-    });
-  }
-}
-function updatePets(dt, t) {
-  for (const p of pets) {
-    const g = p.group;
-    const dx = p.target.x - g.position.x, dz = p.target.z - g.position.z;
-    const dist = Math.hypot(dx, dz);
-    let moving = false;
-    if (dist < 0.3) p.target = randomFloorPoint();
-    else {
-      const step = Math.min(dist, p.speed * dt);
-      g.position.x += dx / dist * step; g.position.z += dz / dist * step; moving = true;
-      const tr = Math.atan2(dx, dz);
-      let diff = ((tr - p.rot + Math.PI) % (Math.PI * 2)) - Math.PI;
-      p.rot += diff * Math.min(1, dt * 6); g.rotation.y = p.rot;
-    }
-    // bouncy hop
-    const hop = Math.abs(Math.sin(t * (moving ? 8 : 2.4) + p.phase));
-    g.position.y = hop * (moving ? 0.18 : 0.05);
-    // breathing squash-stretch (volume-preserving)
-    if (p.body && p.bodyBaseScale) {
-      const br = Math.sin(t * 2.2 + p.phase) * 0.05;
-      p.body.scale.set(p.bodyBaseScale.x * (1 - br * 0.5), p.bodyBaseScale.y * (1 + br), p.bodyBaseScale.z * (1 - br * 0.5));
-    }
-    // googly pupils
-    for (const pu of p.pupils) { pu.p.position.x = pu.bx + Math.cos(t * 5 + p.phase) * 0.025; pu.p.position.y = pu.by + Math.sin(t * 6 + p.phase) * 0.025; }
-    // occasional blink
-    p.blinkT -= dt;
-    if (p.blinkT <= 0) { p.blinkT = 2.4 + Math.random() * 3.5; p.blinkA = 0.16; }
-    let ey = 1;
-    if (p.blinkA > 0) { p.blinkA -= dt; ey = p.blinkA > 0.08 ? 0.14 : 1; }
-    for (const e of p.eyes) e.scale.y = ey;
-    // arm sway
-    for (const a of p.arms) a.m.rotation.x = Math.sin(t * (moving ? 8 : 3) + p.phase + (a.side > 0 ? Math.PI : 0)) * (moving ? 0.6 : 0.18);
-    if (p.halo) { p.halo.rotation.z += dt * 1.5; p.halo.position.y += Math.sin(t * 2 + p.phase) * 0.0008; }
-    // attack a worker now and then
-    p.attackCd -= dt;
-    if (p.attackCd <= 0) {
-      p.attackCd = 6 + Math.random() * 10;
-      const all = flatWorkers();
-      if (all.length) { const w = all[(Math.random() * all.length) | 0]; p.target = { x: w.group.position.x, z: w.group.position.z }; w.ragdoll(); screenShake(0.4); }
-    }
-  }
-}
 
 // ---- tap-to-bully ---------------------------------------------------------
 function setupTap() {

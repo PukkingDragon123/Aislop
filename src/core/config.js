@@ -26,19 +26,19 @@ export const DESK_TIERS = [
 // pipeline to juggle. Each staffed desk just produces income.
 export const DEPARTMENTS = [
   { id: 'creation',   name: 'Creation Bay', role: 'Content Creator', icon: '✨', color: 0xff6f91, uiColor: '#ff6f91', unlockLevel: 0,
-    desc: 'Creators churn out raw AI content all day.', baseRate: 0.7, baseHireCost: 24, hireGrowth: 1.15,
+    desc: 'Creators churn out raw AI content all day.', baseRate: 0.7, baseHireCost: 24, hireGrowth: 1.16,
     titles: ['Content Creator', 'Prompt Engineer', 'Game Developer', 'Music Producer', 'Website Designer'] },
   { id: 'trends',     name: 'Trend Lab',    role: 'Trend Hunter', icon: '🔮', color: 0xffb347, uiColor: '#ffae42', unlockLevel: 1,
-    desc: 'Scouts spot what the feed wants next.', baseRate: 0.6, baseHireCost: 18, hireGrowth: 1.15,
+    desc: 'Scouts spot what the feed wants next.', baseRate: 0.6, baseHireCost: 18, hireGrowth: 1.16,
     titles: ['Trend Hunter', 'Trend Scout', 'Culture Analyst'] },
   { id: 'editing',    name: 'Edit Suite',   role: 'Editor', icon: '🎬', color: 0x7bdff2, uiColor: '#56cfe1', unlockLevel: 3,
-    desc: 'Editors polish slop into something watchable.', baseRate: 0.65, baseHireCost: 30, hireGrowth: 1.15,
+    desc: 'Editors polish slop into something watchable.', baseRate: 0.65, baseHireCost: 30, hireGrowth: 1.16,
     titles: ['Video Editor', 'Audio Engineer', 'QA Specialist'] },
   { id: 'publishing', name: 'Upload Hub',   role: 'Publisher', icon: '🚀', color: 0x9bf6a0, uiColor: '#74d680', unlockLevel: 5,
-    desc: 'The upload team ships to every platform at once.', baseRate: 0.6, baseHireCost: 38, hireGrowth: 1.15,
+    desc: 'The upload team ships to every platform at once.', baseRate: 0.6, baseHireCost: 38, hireGrowth: 1.16,
     titles: ['Upload Specialist', 'Platform Manager', 'Release Coordinator'] },
   { id: 'marketing',  name: 'Growth Floor', role: 'Marketer', icon: '📣', color: 0xc3a6ff, uiColor: '#b18cff', unlockLevel: 8,
-    desc: 'Marketers push content into millions of feeds.', baseRate: 0.8, baseHireCost: 46, hireGrowth: 1.15,
+    desc: 'Marketers push content into millions of feeds.', baseRate: 0.8, baseHireCost: 46, hireGrowth: 1.16,
     titles: ['Marketing Specialist', 'Growth Hacker', 'Community Manager'] },
 ];
 export const DEPT_BY_ID = Object.fromEntries(DEPARTMENTS.map((d) => [d.id, d]));
@@ -67,11 +67,11 @@ export const DECORATIONS = [
 // Office expansion — bigger footprint, more desk capacity, new identity.
 export const OFFICE_LEVELS = [
   { name: 'Garage Startup',  gridW: 8,  gridH: 8,  capacity: 8,   cost: 0 },
-  { name: 'Small Office',    gridW: 10, gridH: 10, capacity: 16,  cost: 500 },
-  { name: 'Open-Plan Floor', gridW: 13, gridH: 12, capacity: 30,  cost: 8000 },
-  { name: 'Full Floor',      gridW: 16, gridH: 14, capacity: 50,  cost: 120000 },
-  { name: 'AI Headquarters', gridW: 20, gridH: 16, capacity: 80,  cost: 2500000 },
-  { name: 'AI Mega-Campus',  gridW: 24, gridH: 20, capacity: 130, cost: 50000000 },
+  { name: 'Small Office',    gridW: 10, gridH: 10, capacity: 16,  cost: 650 },
+  { name: 'Open-Plan Floor', gridW: 13, gridH: 12, capacity: 30,  cost: 12000 },
+  { name: 'Full Floor',      gridW: 16, gridH: 14, capacity: 50,  cost: 180000 },
+  { name: 'AI Headquarters', gridW: 20, gridH: 16, capacity: 80,  cost: 4000000 },
+  { name: 'AI Mega-Campus',  gridW: 24, gridH: 20, capacity: 130, cost: 80000000 },
 ];
 
 // Follower milestones — celebratory moments.
@@ -174,29 +174,29 @@ export const ECON = {
   empPower: 0.10,         // each unit of employee output adds this to the income multiplier
   baseFollowers: 0.25,    // followers per coin/sec earned
   audienceBonus: 0.05,    // income mult: 1 + audienceBonus*log10(1+followers)
-  viralBaseChance: 0.016, // per-second chance of a viral spike
-  viralDuration: 7,       // seconds a viral spike lasts
-  viralMultiplier: 12,    // income multiplier during a viral spike
+  viralBaseChance: 0.012, // per-second chance of a viral spike (rarer = calmer)
+  viralDuration: 6,       // seconds a viral spike lasts
+  viralMultiplier: 8,     // income multiplier during a viral spike
   offlineCap: 8 * 3600,   // max seconds of offline progress credited
   offlineRate: 0.5,       // offline earns 50% of online rate
   saveInterval: 5,        // seconds between autosaves
   // Gacha ("generate brainrot") — costs coins + tokens.
   gachaBaseCoin: 50,      // coin cost of the first pull (cheaper = faster progress)
-  gachaCoinGrowth: 1.10,  // coin cost growth per pull
+  gachaCoinGrowth: 1.12,  // coin cost growth per pull (steeper = collect more slowly)
   gachaTokenCost: 1,      // tokens per single pull
   gachaMultiPulls: 10,    // pulls in a multi
   gachaMultiTokenCost: 9, // tokens for a multi (1 free vs 10 singles)
   // Manual "click to work" — like cookie clicker. Auto-Manager upgrade automates it.
   clickBase: 6,           // flat coins per click
-  clickIncomeFraction: 0.4, // + this fraction of current income/sec per click
-  // Company Level (XP = lifetime coins). Smaller steps = less waiting.
-  levelBaseXp: 120,       // coins to clear level 1
-  levelGrowth: 1.42,      // XP requirement growth per level
-  levelIncomeBonus: 0.04, // +4% global income per company level
-  // Trash / janitor — messes pile up and drag income down until cleaned.
-  messPenaltyPer: 0.05,   // each pile of trash on the floor: -5% income
-  messFloor: 0.4,         // …but income never drops below 40% from trash alone
-  stationLevelScale: 0.4, // station output bonus per company level
+  clickIncomeFraction: 0.3, // + this fraction of current income/sec per click
+  // Company Level (XP = lifetime coins). Slower, smoother climb.
+  levelBaseXp: 150,       // coins to clear level 1
+  levelGrowth: 1.5,       // XP requirement growth per level (steady, slower)
+  levelIncomeBonus: 0.035,// +3.5% global income per company level
+  // Trash / janitor — messes pile up and gently drag income down until cleaned.
+  messPenaltyPer: 0.035,  // each pile of trash on the floor: -3.5% income
+  messFloor: 0.45,        // …but income never drops below 45% from trash alone
+  stationLevelScale: 0.32,// station output bonus per company level
 };
 
 // ----------------------------------------------------------------------------

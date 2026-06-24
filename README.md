@@ -1,10 +1,9 @@
 # 🦠 Brainrot Zoo
 
-> A chaotic **3D idle gacha tycoon**. Run a digital zoo of AI "brainrot" creatures
-> that print coins, **generate** new ones from a gacha, fuse duplicates to level
-> them up, staff a wobbly office full of **3D googly-eyed potato employees** you
-> can bully, and let your brainrots roam as **3D pets** that fight the staff.
-> Built with **Three.js**, zero build step.
+> A cozy-chaotic **3D idle gacha tycoon**. Run a digital zoo of AI "brainrot"
+> creatures that print coins, **generate** new ones from a gacha, fuse duplicates
+> to level them up, and staff a wobbly office full of **3D googly-eyed potato
+> employees** you tap, bully and automate. Built with **Three.js**, zero build step.
 
 Three pillars, nothing else in the way:
 
@@ -51,12 +50,10 @@ No `npm install` — Three.js is vendored in `src/vendor/`.
   the shop stays clean.) Staff are **3D potato characters** with big stupid
   googly eyes and **drunk wobble physics** (spring-sway, stumbles, ragdoll
   flops). **Tap to make them work.**
-- **🦓 Pets & chaos:** **45 collectible brainrots**, and your owned ones **roam
-  the floor as little 3D creatures** — rarity-coloured blobs with googly eyes,
-  crowns/halos for the rare ones — wandering, hopping and **attacking employees**.
-  Buy chaos props — a **🦖 Office Dino**, a **🧨 TNT Crate**, a **🥊 Bully-Bot** —
-  and **tap them** to detonate / stomp / whip everyone flat. Plus a ☕ coffee
-  machine and 🍔 snack bar for the staff.
+- **🦓 Collect & chaos:** **45 collectible brainrots** — pull them from the gacha and
+  **fuse duplicates** to level them up; rarer ones print far more. Buy chaos props —
+  a **🦖 Office Dino**, a **🧨 TNT Crate**, a **🥊 Bully-Bot** — and **tap them** to
+  detonate / stomp / whip the staff flat. Plus a ☕ coffee machine and 🍔 snack bar.
 - **🐋 Events:** an investor **🐋 Orca Tank** pitch, a **🦝 Sketchy Dealer** with
   risky deals (mystery crates, double-or-nothing), and **🧑‍💻 employee problems**
   (pay them off, throw a pizza party, or ignore it and watch the meltdown).
@@ -72,13 +69,10 @@ No `npm install` — Three.js is vendored in `src/vendor/`.
   earning **offline** (capped at 8h, with a welcome-back summary).
 
 ### Brainrot art
-Roaming pets are **hand-tuned procedural 3D creatures** (`world/brainrot3d.js`) —
-rounded bean bodies in a cohesive per-rarity palette, soft bellies, blushing
-cheeks, big shiny googly eyes, smiles, waving arms and seed-driven flair (ears /
-fin / antenna / tail), with crowns for legendaries and glowing halos for
-mythic/diamond. Gacha cards still render **procedural meme art**; each roster
-entry in `src/core/config.js` also has an `img` field — drop in an image URL and
-the game uses it for that character's card/tile automatically.
+Every brainrot renders as charming **procedural meme art** (`sim/brainrot.js`) on its
+gacha card, its collection tile and the office wall screen. Each roster entry in
+`src/core/config.js` also has an `img` field — drop in an image URL and the game uses
+it for that character automatically.
 
 ---
 
@@ -95,8 +89,9 @@ the game uses it for that character's card/tile automatically.
 - **Deep progression:** company Level/XP with steady unlocks, a leveled Upgrades
   tree (incl. Click Power, Auto-Manager, Lucky Rolls), 20+ achievements, and
   **functional decorations** (Cash Printer, Hype Billboard…).
-- **45 brainrots** as charming **3D blob mascots** that wander, hop, blink, wave
-  and brawl with the staff.
+- **45 collectible brainrots** with a dramatic rarity reveal; rarer ones print far more.
+- **Steady, slower idle pacing** — a calm office (occasional, not constant, chaos) and
+  a gentle compounding curve so the numbers climb without runaway spikes.
 - **Procedural sound** (`core/sfx.js`): a tiny WebAudio synth — tonal blips for
   taps, buys, pulls, level-ups, viral and rarity reveals, all on one pleasant
   scale, with a mute toggle. Zero audio files.
