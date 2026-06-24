@@ -53,44 +53,37 @@ export function initScene(canvasEl) {
   return { scene, camera, renderer };
 }
 
-// Vivid vertical-gradient sky for a more saturated, colourful backdrop.
-function makeSky() {
-  const c = document.createElement('canvas'); c.width = 16; c.height = 256;
-  const x = c.getContext('2d');
-  const g = x.createLinearGradient(0, 0, 0, 256);
-  g.addColorStop(0, '#7b5cff'); g.addColorStop(0.5, '#b39bff'); g.addColorStop(1, '#ffd6ec');
-  x.fillStyle = g; x.fillRect(0, 0, 16, 256);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.LinearFilter;
-  return t;
-}
-
 function setupLights() {
-  const hemi = new THREE.HemisphereLight(0xfff0ff, 0xbfb0d6, 1.0);
+  // Sky/ground hemisphere for soft, cohesive ambient colour.
+  const hemi = new THREE.HemisphereLight(0xeaf4ff, 0xd7c8b6, 0.85);
   scene.add(hemi);
-
-  const ambient = new THREE.AmbientLight(0xffffff, 0.42);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.34);
   scene.add(ambient);
 
-  const sun = new THREE.DirectionalLight(0xfff0d8, 1.5);
-  sun.position.set(14, 26, 10);
+  // Warm key sun with crisp, soft-edged shadows.
+  const sun = new THREE.DirectionalLight(0xfff1da, 1.85);
+  sun.position.set(16, 28, 12);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.near = 1;
-  sun.shadow.camera.far = 90;
-  const s = 26;
-  sun.shadow.camera.left = -s;
-  sun.shadow.camera.right = s;
-  sun.shadow.camera.top = s;
-  sun.shadow.camera.bottom = -s;
-  sun.shadow.bias = -0.0006;
-  sun.shadow.normalBias = 0.02;
-  scene.add(sun);
-  scene.add(sun.target);
+  sun.shadow.camera.far = 95;
+  const s = 28;
+  sun.shadow.camera.left = -s; sun.shadow.camera.right = s;
+  sun.shadow.camera.top = s; sun.shadow.camera.bottom = -s;
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.025;
+  sun.shadow.radius = 3.5;
+  scene.add(sun); scene.add(sun.target);
 
-  // Soft cool fill from the opposite side to keep shadows from going muddy.
-  const fill = new THREE.DirectionalLight(0xc9b6ff, 0.5);
-  fill.position.set(-12, 10, -8);
+  // Cool fill from the opposite side so shadows stay lively, not muddy.
+  const fill = new THREE.DirectionalLight(0xbcd0ff, 0.45);
+  fill.position.set(-14, 11, -9);
   scene.add(fill);
+
+  // Subtle rim/back light to pop silhouettes off the background.
+  const rim = new THREE.DirectionalLight(0xffe6c0, 0.5);
+  rim.position.set(-6, 9, -16);
+  scene.add(rim);
 }
 
 function resize() {

@@ -12,6 +12,7 @@ import { currentQuest } from '../sim/quests.js';
 import { bus } from '../core/events.js';
 
 let refs = {};
+let lastMoney = -1;
 
 export function initHud(container) {
   const coinStat = stat('🪙', 'coins', '#ffce47');
@@ -77,6 +78,11 @@ function stat(icon, key, color) {
 export function update() {
   const r = getRates();
   refs.coins.textContent = money(state.money);
+  // Pop the coin counter on a discrete jump (click / reward), not steady income.
+  if (lastMoney >= 0 && state.money - lastMoney > Math.max(8, lastMoney * 0.02)) {
+    refs.coins.classList.remove('pop'); void refs.coins.offsetWidth; refs.coins.classList.add('pop');
+  }
+  lastMoney = state.money;
   refs.coinsRate.textContent = rate(r.money);
   refs.incomeTop.querySelector('.income-val').textContent = money(r.money);
   refs.tokens.textContent = fmt(state.tokens);

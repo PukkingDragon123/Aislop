@@ -72,10 +72,13 @@ No `npm install` — Three.js is vendored in `src/vendor/`.
   earning **offline** (capped at 8h, with a welcome-back summary).
 
 ### Brainrot art
-Every character renders as charming **procedural art** out of the box. Each roster
-entry in `src/core/config.js` also has an `img` field — drop in an image URL (e.g.
-a **Higgsfield** render) and the game uses it automatically for that character's
-gacha card, collection tile and the office screen.
+Roaming pets are **hand-tuned procedural 3D creatures** (`world/brainrot3d.js`) —
+rounded bean bodies in a cohesive per-rarity palette, soft bellies, blushing
+cheeks, big shiny googly eyes, smiles, waving arms and seed-driven flair (ears /
+fin / antenna / tail), with crowns for legendaries and glowing halos for
+mythic/diamond. Gacha cards still render **procedural meme art**; each roster
+entry in `src/core/config.js` also has an `img` field — drop in an image URL and
+the game uses it for that character's card/tile automatically.
 
 ---
 
@@ -92,11 +95,18 @@ gacha card, collection tile and the office screen.
 - **Deep progression:** company Level/XP with steady unlocks, a leveled Upgrades
   tree (incl. Click Power, Auto-Manager, Lucky Rolls), 20+ achievements, and
   **functional decorations** (Cash Printer, Hype Billboard…).
+- **45 brainrots** as charming **3D blob mascots** that wander, hop, blink, wave
+  and brawl with the staff.
+- **Procedural sound** (`core/sfx.js`): a tiny WebAudio synth — tonal blips for
+  taps, buys, pulls, level-ups, viral and rarity reveals, all on one pleasant
+  scale, with a mute toggle. Zero audio files.
+- **Game-feel polish:** tapered screen-shake, squash-&-stretch, eased tweens,
+  coin-counter pops, confetti and warm three-point lighting with soft shadows.
 - **Clean flat UI:** bright, solid colours, no gradients, no loading screen —
   designed to feel hand-made and polished.
 - 3D isometric office (orthographic Three.js camera, soft shadows), a live wall
-  screen that cycles your top brainrots and full-screen memes, polished neon UI,
-  animated title screen.
+  screen that cycles your top brainrots and full-screen memes, and an animated
+  title screen of two potatoes fighting over a brainrot.
 
 ---
 

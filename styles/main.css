@@ -428,3 +428,14 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .mpotato, .mp-eye::after, .mp-leg, .mdio-pow, .mdio-spark, .mdio-orb { animation: none !important; }
 }
+
+/* ===== v10: polish pass — coin pop, hover lift, snappier feedback ===== */
+.hud-val.pop { animation: hudPop .34s cubic-bezier(.2,1.4,.3,1); display: inline-block; transform-origin: left center; }
+@keyframes hudPop { 0% { transform: scale(1); } 38% { transform: scale(1.16); } 100% { transform: scale(1); } }
+@media (hover: hover) {
+  .card:hover { transform: translateY(-1px); border-color: #d7dcee; }
+  .menu-link:hover, .cam-btn:hover, .tool-btn:hover { border-color: #cfd5ea; }
+}
+.tool-btn.big.active { animation: toolPulse .3s ease; }
+@keyframes toolPulse { 0% { transform: scale(.94); } 60% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .hud-val.pop, .tool-btn.big.active { animation: none !important; } }

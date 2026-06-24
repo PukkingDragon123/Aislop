@@ -12,6 +12,7 @@ import { pull, pullCost, canAffordPull, ownedCount, RARITY_RANK } from '../sim/g
 import { charArt } from '../sim/brainrot.js';
 import { screenShake } from '../world/effects.js';
 import { toast } from './toast.js';
+import { sPull, sError } from '../core/sfx.js';
 
 let panel, body, open = false, fab;
 
@@ -54,7 +55,7 @@ function pullButton(label, multi) {
   };
   btn.addEventListener('click', () => {
     const res = pull(multi);
-    if (!res.ok) { toast(res.reason, { icon: '🚫', color: '#ff7a7a' }); return; }
+    if (!res.ok) { sError(); toast(res.reason, { icon: '🚫', color: '#ff7a7a' }); return; }
     showReveal(res.results, multi);
     render();
   });
@@ -99,14 +100,14 @@ function showReveal(results, multi) {
   const best = results.reduce((b, r) => Math.max(b, RARITY_RANK[r.char.rarity]), 0);
   const cards = el('div', { class: 'reveal-cards' });
   const footer = el('div', { class: 'reveal-foot hidden' }, [
-    el('button', { class: 'gacha-btn', text: 'Again', onclick: () => { ov.remove(); const r = pull(multi); if (!r.ok) { toast(r.reason, { icon: '🚫', color: '#ff7a7a' }); render(); } else { showReveal(r.results, multi); render(); } } }),
+    el('button', { class: 'gacha-btn', text: 'Again', onclick: () => { ov.remove(); const r = pull(multi); if (!r.ok) { sError(); toast(r.reason, { icon: '🚫', color: '#ff7a7a' }); render(); } else { showReveal(r.results, multi); render(); } } }),
     el('button', { class: 'gacha-btn primary', text: 'Collect', onclick: () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 250); } }),
   ]);
   const orb = el('div', { class: 'summon-orb' }, [el('div', { class: 'summon-core', text: '🎰' })]);
   const ov = el('div', { class: 'reveal' }, [el('div', { class: 'reveal-inner' }, [orb, cards, footer])]);
   document.body.appendChild(ov);
   requestAnimationFrame(() => { ov.classList.add('show'); orb.classList.add('charge'); });
-  screenShake(0.4);
+  screenShake(0.4); sPull();
 
   const stagger = results.length > 3 ? 130 : 360;
   setTimeout(() => {

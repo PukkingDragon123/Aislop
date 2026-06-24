@@ -1,14 +1,26 @@
 // ============================================================================
-//  Procedural 3D brainrot creatures. Every roster character becomes a little
-//  low-poly blob — rarity-coloured body, googly eyes, a floating emoji icon so
-//  you can tell them apart, and seed-driven flair (ears / fin / horn, plus a
-//  crown for gold/legendary and a halo for mythic/diamond). Used for the pets
-//  that roam (and brawl across) the office floor.
+//  Procedural 3D brainrot creatures — hand-tuned low-poly "blob mascots".
+//  Each roster character becomes a charming little guy: rounded bean body in a
+//  cohesive per-rarity palette, a soft belly, blushing cheeks, big shiny googly
+//  eyes, a smile, stubby waving arms + feet, and seed-driven flair (ears / fin /
+//  antenna / tail). Rare tiers get crowns; mythic/diamond get a glowing halo.
+//  Animation hooks live in userData and are driven by office.updatePets().
 // ============================================================================
 
 import * as THREE from '../vendor/three.module.js';
 import { RARITIES } from '../core/config.js';
-import { sphere, cyl, box } from './furniture.js';
+import { sphere, cyl, box, mat } from './furniture.js';
+
+// Cohesive, hand-picked palette per rarity (body / soft belly / accent / cheek).
+const SKIN = {
+  common:    { body: 0xc2cde0, belly: 0xeef2fb, accent: 0x97a6c6, cheek: 0xffb3c1, ei: 0.0 },
+  rare:      { body: 0x5aa6ff, belly: 0xcbe6ff, accent: 0x2f7fe0, cheek: 0xff9ec4, ei: 0.05 },
+  epic:      { body: 0xb06bff, belly: 0xe7d6ff, accent: 0x8a3fe0, cheek: 0xff8fd0, ei: 0.12 },
+  legendary: { body: 0xffb02e, belly: 0xffe6b3, accent: 0xe07f12, cheek: 0xff8a63, ei: 0.16, crown: true },
+  mythic:    { body: 0xff4d8d, belly: 0xffc9dc, accent: 0xe0246e, cheek: 0xffd7e4, ei: 0.22, halo: true },
+  gold:      { body: 0xffcf33, belly: 0xfff0aa, accent: 0xd9a300, cheek: 0xffdc8a, ei: 0.18, metal: 0.9, crown: true },
+  diamond:   { body: 0x86e4ff, belly: 0xe6faff, accent: 0x2bd0ff, cheek: 0xc4f1ff, ei: 0.34, metal: 0.5, halo: true },
+};
 
 const emojiCache = new Map();
 function emojiTexture(emoji) {
@@ -16,67 +28,95 @@ function emojiTexture(emoji) {
   const c = document.createElement('canvas'); c.width = c.height = 128;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, 128, 128);
-  ctx.font = '96px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(emoji, 64, 74);
+  ctx.font = '92px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, 64, 72);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   emojiCache.set(emoji, t); return t;
 }
 function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
-const hex = (str) => new THREE.Color(str).getHex();
+function mulberry(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 export function buildBrainrot(char) {
-  const r = RARITIES[char.rarity] || RARITIES.common;
+  const sk = SKIN[char.rarity] || SKIN.common;
+  const rng = mulberry(hash(char.id));
+  const variant = hash(char.id) % 5;
   const g = new THREE.Group();
-  const seed = hash(char.id);
-  const bodyCol = hex(r.glow);
-  const accent = hex(r.color);
+  const bodyOpts = { rough: sk.metal ? 0.28 : 0.5, metal: sk.metal || 0, emissive: sk.ei ? sk.body : 0x000000, ei: sk.ei };
 
-  // Round jelly body (varies a touch per character).
-  const body = sphere(0.5, bodyCol, { detail: 2, rough: 0.45 });
-  body.scale.set(0.92 + (seed % 4) * 0.05, 0.9 + ((seed >> 2) % 4) * 0.06, 0.95);
-  body.position.y = 0.5; g.add(body); g.userData.body = body;
+  // ---- bean body (varies a little per character) ----
+  const tall = 1.05 + rng() * 0.2;
+  const wide = 0.92 + rng() * 0.12;
+  const body = sphere(0.5, sk.body, { detail: 3, ...bodyOpts });
+  body.scale.set(wide, tall, wide * 0.97); body.position.y = 0.52;
+  g.add(body); g.userData.body = body; g.userData.bodyBaseScale = body.scale.clone();
 
-  // Belly patch in the rarity accent.
-  const tummy = sphere(0.3, accent, { detail: 1, rough: 0.5 });
-  tummy.scale.set(1, 1.1, 0.45); tummy.position.set(0, 0.42, 0.34); g.add(tummy);
+  // ---- lighter belly patch ----
+  const belly = sphere(0.5, sk.belly, { detail: 2, rough: 0.6 });
+  belly.scale.set(wide * 0.6, tall * 0.6, 0.46); belly.position.set(0, 0.44, wide * 0.5);
+  belly.castShadow = false; g.add(belly);
 
-  // Big googly eyes (jiggle each frame via userData.pupils).
-  g.userData.pupils = [];
-  for (const dx of [-0.17, 0.17]) {
-    const eye = sphere(0.14, 0xffffff, { detail: 2, rough: 0.2 });
-    eye.position.set(dx, 0.72, 0.33); eye.scale.z = 0.7; g.add(eye);
-    const pupil = sphere(0.06, 0x101014, { detail: 1 });
-    pupil.position.set(dx, 0.72, 0.45); g.add(pupil);
-    g.userData.pupils.push({ p: pupil, bx: dx, by: 0.72 });
+  // ---- blush cheeks ----
+  for (const dx of [-1, 1]) {
+    const cheek = sphere(0.1, sk.cheek, { detail: 1, rough: 0.7 });
+    cheek.scale.set(1, 0.66, 0.4); cheek.position.set(dx * 0.27, 0.62, wide * 0.43);
+    cheek.castShadow = false; g.add(cheek);
   }
 
-  // Seeded silhouette flair so the species feel distinct.
-  const variant = seed % 4;
-  if (variant === 0) { for (const dx of [-0.32, 0.32]) { const ear = sphere(0.13, bodyCol, { detail: 1 }); ear.position.set(dx, 0.95, 0); g.add(ear); } }
-  else if (variant === 1) { const horn = cyl(0.02, 0.1, 0.32, accent); horn.position.set(0, 1.02, 0); g.add(horn); }
-  else if (variant === 2) { for (const dx of [-0.36, 0.36]) { const fin = box(0.06, 0.26, 0.2, accent); fin.position.set(dx, 0.66, 0); fin.rotation.z = dx > 0 ? -0.5 : 0.5; g.add(fin); } }
-  else { const tuft = sphere(0.1, accent, { detail: 1 }); tuft.position.set(0, 1.0, 0); g.add(tuft); }
-
-  // Stubby feet.
-  for (const dx of [-0.2, 0.2]) { const ft = sphere(0.12, accent, { detail: 1 }); ft.scale.set(1, 0.55, 1.25); ft.position.set(dx, 0.08, 0.08); g.add(ft); }
-
-  // Rarity crowns / halos.
-  if (char.rarity === 'legendary' || char.rarity === 'gold') {
-    const crown = cyl(0.17, 0.2, 0.13, 0xffcf33, { emissive: 0xffcf33, ei: 0.45, metal: 0.4 });
-    crown.position.set(0, 1.04, 0); g.add(crown);
-  }
-  if (char.rarity === 'mythic' || char.rarity === 'diamond') {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.04, 8, 22),
-      new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.8, roughness: 0.3 }));
-    ring.rotation.x = Math.PI / 2; ring.position.y = 1.15; ring.castShadow = false;
-    g.add(ring); g.userData.halo = ring;
+  // ---- big shiny googly eyes ----
+  g.userData.eyes = []; g.userData.pupils = [];
+  const eyeY = 0.78 + (tall - 1) * 0.2;
+  const eyeGap = 0.16 + rng() * 0.03;
+  for (const dx of [-1, 1]) {
+    const wrap = new THREE.Group();
+    const white = sphere(0.155, 0xffffff, { detail: 2, rough: 0.12 }); white.scale.z = 0.6; wrap.add(white);
+    const pupil = sphere(0.08, 0x14161d, { detail: 1, rough: 0.2 }); pupil.position.set(0, 0, 0.12); wrap.add(pupil);
+    const shine = sphere(0.03, 0xffffff, { detail: 0, emissive: 0xffffff, ei: 0.7 }); shine.position.set(0.035, 0.045, 0.17); shine.castShadow = false; wrap.add(shine);
+    wrap.position.set(dx * eyeGap, eyeY, wide * 0.45);
+    g.add(wrap); g.userData.eyes.push(wrap);
+    g.userData.pupils.push({ p: pupil, bx: 0, by: 0 });
   }
 
-  // Floating emoji label so you always know who's who.
-  const icon = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTexture(char.emoji[0]), transparent: true, depthWrite: false }));
-  icon.scale.set(0.46, 0.46, 0.46); icon.position.set(0, 1.3, 0); g.add(icon); g.userData.icon = icon;
+  // ---- little smile ----
+  const mouth = sphere(0.055, 0x35262f, { detail: 1, rough: 0.4 });
+  mouth.scale.set(1.5, 0.7, 0.4); mouth.position.set(0, eyeY - 0.21, wide * 0.49); mouth.castShadow = false; g.add(mouth);
 
-  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  // ---- stubby waving arms ----
+  g.userData.arms = [];
+  for (const dx of [-1, 1]) {
+    const arm = sphere(0.12, sk.body, { detail: 1, ...bodyOpts });
+    arm.scale.set(0.66, 1.15, 0.66); arm.position.set(dx * (wide * 0.5 + 0.04), 0.47, 0.05); arm.rotation.z = dx * 0.5;
+    g.add(arm); g.userData.arms.push({ m: arm, side: dx });
+  }
+  // ---- feet ----
+  for (const dx of [-1, 1]) {
+    const foot = sphere(0.13, sk.accent, { detail: 1, rough: 0.55 });
+    foot.scale.set(1.1, 0.55, 1.45); foot.position.set(dx * 0.2, 0.07, 0.1); g.add(foot);
+  }
+
+  // ---- seeded silhouette flair ----
+  if (variant === 0) { for (const dx of [-1, 1]) { const ear = sphere(0.14, sk.body, { detail: 1, ...bodyOpts }); ear.position.set(dx * 0.3, 0.94 * tall, 0); g.add(ear); } }
+  else if (variant === 1) { const st = cyl(0.02, 0.03, 0.34, sk.accent); st.position.set(0, 0.98 * tall, 0); g.add(st); const b = sphere(0.07, sk.cheek, { detail: 1, emissive: sk.cheek, ei: 0.5 }); b.position.set(0, 1.18 * tall, 0); g.add(b); }
+  else if (variant === 2) { const fin = box(0.06, 0.27, 0.22, sk.accent); fin.position.set(0, 0.9 * tall, -0.08); g.add(fin); }
+  else if (variant === 3) { for (const dx of [-1, 1]) { const ear = cyl(0.012, 0.09, 0.28, sk.body, { ...bodyOpts }); ear.position.set(dx * 0.25, 0.97 * tall, 0); ear.rotation.z = dx * -0.28; g.add(ear); } }
+  else { const t1 = sphere(0.09, sk.accent, { detail: 1 }); t1.position.set(0, 1.0 * tall, 0); g.add(t1); const t2 = sphere(0.06, sk.accent, { detail: 1 }); t2.position.set(0.06, 1.09 * tall, 0); g.add(t2); }
+  if (rng() > 0.5) { const tail = sphere(0.1, sk.body, { detail: 1, ...bodyOpts }); tail.scale.set(0.7, 0.7, 1.35); tail.position.set(0, 0.4, -wide * 0.56); g.add(tail); }
+
+  // ---- rarity crown / halo ----
+  if (sk.crown) {
+    const crown = cyl(0.15, 0.19, 0.13, 0xffd23f, { metal: 0.6, rough: 0.25, emissive: 0xffd23f, ei: 0.35 });
+    crown.position.set(0, 1.04 * tall, 0); g.add(crown);
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; const sp = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.11, 6), mat(0xffe98a, { emissive: 0xffd23f, ei: 0.45, metal: 0.6 })); sp.position.set(Math.cos(a) * 0.16, 1.13 * tall, Math.sin(a) * 0.16); sp.castShadow = false; g.add(sp); }
+  }
+  if (sk.halo) {
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.035, 10, 26), new THREE.MeshStandardMaterial({ color: sk.accent, emissive: sk.accent, emissiveIntensity: 1.0, roughness: 0.3 }));
+    halo.rotation.x = Math.PI / 2; halo.position.y = 1.14 * tall; halo.castShadow = false; g.add(halo); g.userData.halo = halo;
+  }
+
+  // ---- chest emblem: the character's own emoji, as a little badge ----
+  const badge = new THREE.Mesh(new THREE.CircleGeometry(0.15, 22), new THREE.MeshBasicMaterial({ map: emojiTexture(char.emoji[0]), transparent: true, depthWrite: false }));
+  badge.position.set(0, 0.42, wide * 0.5 + 0.02); badge.rotation.x = -0.12; g.add(badge);
+
+  g.traverse((o) => { if (o.isMesh && o.castShadow !== false) o.castShadow = true; });
   g.scale.setScalar(0.92);
   return g;
 }

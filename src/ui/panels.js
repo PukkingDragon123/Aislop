@@ -18,6 +18,7 @@ import { incomePerSec, companyLevel, isAutomated } from '../sim/economy.js';
 import { achievementProgress, isUnlocked, unlockedCount } from '../sim/achievements.js';
 import { bus } from '../core/events.js';
 import { toast, modal } from './toast.js';
+import { isMuted, toggleMute, sError } from '../core/sfx.js';
 
 let sheet, sheetTitle, sheetSub, sheetBody, toolbar;
 let isOpen = false;
@@ -169,7 +170,7 @@ function buyButton(label, getCost, onBuy, { canBuy } = {}) {
     btn.disabled = locked || !(state.money >= cost && cost !== Infinity);
     btn.innerHTML = cost === Infinity ? `<b>${label}</b><span>MAX</span>` : `<b>${label}</b><span>${money(cost)}</span>`;
   };
-  btn.addEventListener('click', () => { const r = onBuy(); if (r && !r.ok) toast(r.reason, { icon: '🚫', color: '#ff7a7a', ms: 2200 }); else renderStore(); });
+  btn.addEventListener('click', () => { const r = onBuy(); if (r && !r.ok) { sError(); toast(r.reason, { icon: '🚫', color: '#ff7a7a', ms: 2200 }); } else renderStore(); });
   liveUpdaters.push(update); update();
   return btn;
 }
@@ -207,6 +208,7 @@ function openSettings() {
       el('div', { class: 'modal-text', text: 'Export save code:' }), info,
     ],
     actions: [
+      { label: isMuted() ? '🔇 Sound: Off' : '🔊 Sound: On', keepOpen: true, onClick: () => { const m = toggleMute(); toast(m ? 'Sound muted 🔇' : 'Sound on 🔊'); } },
       { label: 'Show Save Code', keepOpen: true, onClick: () => { info.value = exportSave(); info.select(); } },
       { label: 'Load / Import…', keepOpen: true, onClick: () => importFlow() },
       { label: 'Reset Game', onClick: () => confirmReset() },

@@ -21,12 +21,14 @@ import { initToasts, toast, banner, modal } from './ui/toast.js';
 import { initGacha, openGacha, refreshGacha } from './ui/gacha.js';
 import { showMenu } from './ui/menu.js';
 import { startTutorial, orcaTankOffer, dealerOffer, employeeProblem } from './ui/dialogue.js';
+import { unlockAudio, sBuy, sLevel, sViral, sAchieve, sReveal } from './core/sfx.js';
 
 let office, pendingOffline = null, isFresh = false, playing = false;
 
 function start() {
   initScene(document.getElementById('scene'));
   initEffects(getScene());
+  window.addEventListener('pointerdown', unlockAudio, { once: true }); // WebAudio needs a gesture
 
   const { fresh } = loadState();
   isFresh = fresh;
@@ -85,9 +87,10 @@ function wireEvents() {
   bus.on('milestone', (ms) => { banner(ms.label, ms.blurb, { icon: '🎉' }); for (let i = 0; i < 3; i++) setTimeout(() => confettiBurst(office.randomCelebrationPos(), 120, 1.2), i * 160); });
 
   bus.on('pull', ({ results }) => {
-    const RANK = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4 };
+    const RANK = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4, gold: 5, diamond: 6 };
     let best = 0, bestChar = null;
     for (const r of results) if (RANK[r.char.rarity] >= best) { best = RANK[r.char.rarity]; bestChar = r.char; }
+    sReveal(best);
     if (best >= 3 && bestChar) { confettiBurst(office.randomCelebrationPos(), 200, 1.4); screenShake(1.6); flash('rgba(255,210,120,.4)'); banner(`${RARITIES[bestChar.rarity].name.toUpperCase()}!`, bestChar.name, { icon: '🌟' }); }
   });
 
@@ -113,6 +116,14 @@ function wireEvents() {
     banner(`🏅 ${ach.name}`, `${ach.desc} · +${r.join('  +')}`, { icon: '🏅' });
     confettiBurst(office.randomCelebrationPos(), 120, 1.2);
   });
+
+  // Sound feedback (procedural, mutable). Multiple bus listeners are fine.
+  for (const ev of ['hired', 'deskUpgraded', 'decoAdded', 'upgradeBought', 'stationBuilt', 'officeExpanded']) bus.on(ev, () => sBuy());
+  bus.on('levelUp', () => sLevel());
+  bus.on('viral', () => sViral());
+  bus.on('milestone', () => sAchieve());
+  bus.on('questComplete', () => sAchieve());
+  bus.on('achievement', () => sAchieve());
 
   bus.on('ui:gacha', () => openGacha());
   bus.on('ui:quests', () => showQuests());
