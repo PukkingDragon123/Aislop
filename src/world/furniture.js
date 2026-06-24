@@ -10,7 +10,8 @@ import { DESK_TIERS, STATION_BY_ID } from '../core/config.js';
 // --- material / geometry caches (shared, big perf win with many workers) ----
 const matCache = new Map();
 export function mat(color, opts = {}) {
-  const key = `${color}|${opts.rough ?? 0.7}|${opts.metal ?? 0}|${opts.emissive ?? 0}|${opts.ei ?? 0}|${opts.opacity ?? 1}`;
+  const env = opts.env ?? 0.5; // soft image-based reflections from the sky
+  const key = `${color}|${opts.rough ?? 0.7}|${opts.metal ?? 0}|${opts.emissive ?? 0}|${opts.ei ?? 0}|${opts.opacity ?? 1}|${env}`;
   if (matCache.has(key)) return matCache.get(key);
   const m = new THREE.MeshStandardMaterial({
     color,
@@ -21,6 +22,7 @@ export function mat(color, opts = {}) {
     transparent: (opts.opacity ?? 1) < 1,
     opacity: opts.opacity ?? 1,
   });
+  m.envMapIntensity = env;
   matCache.set(key, m);
   return m;
 }

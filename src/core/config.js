@@ -161,11 +161,11 @@ export const ROSTER_BY_ID = Object.fromEntries(ROSTER.map((c) => [c.id, c]));
 //  `rate` = coins/sec PER built unit while running (scales with company level).
 // ----------------------------------------------------------------------------
 export const STATIONS = [
-  { id: 'render',  name: 'Render Farm',  icon: '🖥️', color: '#4fa3ff', uiColor: '#4fa3ff', unlockLevel: 0,  baseCost: 150,    growth: 1.18, rate: 4,     runFor: 8,  desc: 'Renders slop in bulk. Tap to spin it up.' },
-  { id: 'meme',    name: 'Meme Forge',   icon: '😹', color: '#ff8d3b', uiColor: '#ff8d3b', unlockLevel: 2,  baseCost: 2200,   growth: 1.20, rate: 30,    runFor: 8,  desc: 'Stamps out fresh memes. Tap to fire it up.' },
-  { id: 'stream',  name: 'Stream Booth', icon: '📡', color: '#b06bff', uiColor: '#b06bff', unlockLevel: 5,  baseCost: 45000,  growth: 1.22, rate: 260,   runFor: 9,  desc: 'Goes live to the whole feed. Tap to broadcast.' },
-  { id: 'mint',    name: 'Coin Mint',    icon: '🏭', color: '#ffce47', uiColor: '#ffb020', unlockLevel: 9,  baseCost: 900000, growth: 1.24, rate: 2400,  runFor: 9,  desc: 'Literally prints money. Tap to mint.' },
-  { id: 'reactor', name: 'Slop Reactor', icon: '☢️', color: '#49e07d', uiColor: '#16c172', unlockLevel: 14, baseCost: 2.2e7,  growth: 1.26, rate: 22000, runFor: 10, desc: 'Fuses raw brainrot into pure profit. Tap to ignite.' },
+  { id: 'render',  name: 'Render Farm',  icon: '🖥️', color: '#4fa3ff', uiColor: '#4fa3ff', unlockLevel: 0,  baseCost: 150,    growth: 1.19, rate: 3,     runFor: 8,  desc: 'Renders slop in bulk. Tap to spin it up.' },
+  { id: 'meme',    name: 'Meme Forge',   icon: '😹', color: '#ff8d3b', uiColor: '#ff8d3b', unlockLevel: 2,  baseCost: 2200,   growth: 1.21, rate: 24,    runFor: 8,  desc: 'Stamps out fresh memes. Tap to fire it up.' },
+  { id: 'stream',  name: 'Stream Booth', icon: '📡', color: '#b06bff', uiColor: '#b06bff', unlockLevel: 5,  baseCost: 45000,  growth: 1.23, rate: 210,   runFor: 9,  desc: 'Goes live to the whole feed. Tap to broadcast.' },
+  { id: 'mint',    name: 'Coin Mint',    icon: '🏭', color: '#ffce47', uiColor: '#ffb020', unlockLevel: 9,  baseCost: 900000, growth: 1.25, rate: 1900,  runFor: 9,  desc: 'Literally prints money. Tap to mint.' },
+  { id: 'reactor', name: 'Slop Reactor', icon: '☢️', color: '#49e07d', uiColor: '#16c172', unlockLevel: 14, baseCost: 2.2e7,  growth: 1.27, rate: 17000, runFor: 10, desc: 'Fuses raw brainrot into pure profit. Tap to ignite.' },
 ];
 export const STATION_BY_ID = Object.fromEntries(STATIONS.map((s) => [s.id, s]));
 
@@ -182,17 +182,17 @@ export const ECON = {
   saveInterval: 5,        // seconds between autosaves
   // Gacha ("generate brainrot") — costs coins + tokens.
   gachaBaseCoin: 50,      // coin cost of the first pull (cheaper = faster progress)
-  gachaCoinGrowth: 1.12,  // coin cost growth per pull (steeper = collect more slowly)
+  gachaCoinGrowth: 1.13,  // coin cost growth per pull (steeper = collect more slowly)
   gachaTokenCost: 1,      // tokens per single pull
   gachaMultiPulls: 10,    // pulls in a multi
   gachaMultiTokenCost: 9, // tokens for a multi (1 free vs 10 singles)
   // Manual "click to work" — like cookie clicker. Auto-Manager upgrade automates it.
   clickBase: 6,           // flat coins per click
   clickIncomeFraction: 0.3, // + this fraction of current income/sec per click
-  // Company Level (XP = lifetime coins). Slower, smoother climb.
-  levelBaseXp: 150,       // coins to clear level 1
-  levelGrowth: 1.5,       // XP requirement growth per level (steady, slower)
-  levelIncomeBonus: 0.035,// +3.5% global income per company level
+  // Company Level (XP = lifetime coins). Slow, deliberate climb (costs > production).
+  levelBaseXp: 150,       // coins to clear level 1 (early levels stay snappy)
+  levelGrowth: 1.55,      // XP requirement growth per level (stretches mid/late)
+  levelIncomeBonus: 0.03, // +3% global income per company level
   // Trash / janitor — messes pile up and gently drag income down until cleaned.
   messPenaltyPer: 0.035,  // each pile of trash on the floor: -3.5% income
   messFloor: 0.45,        // …but income never drops below 45% from trash alone
@@ -208,9 +208,9 @@ export const UPGRADES = [
   { id: 'autoclick', name: 'Auto-Manager',      icon: '🤖', unlockLevel: 1,  baseCost: 1200,   growth: 1.85, max: 40, desc: 'Auto-clicks +1/sec per level — idles for you!', apply: (l, e) => { e.autoClick += l; } },
   { id: 'autopilot', name: 'Station Auto-Pilot',icon: '⚙️', unlockLevel: 3,  baseCost: 9000,   growth: 1,    max: 1,  desc: 'Your stations run on their own — no more tapping to work them!', apply: (l, e) => { e.automation = 1; } },
   { id: 'overclock', name: 'Station Overclock', icon: '🔧', unlockLevel: 4,  baseCost: 6000,   growth: 1.8,  max: 40, desc: '+35% station output per level.',    apply: (l, e) => { e.stationMult *= 1 + 0.35 * l; } },
-  { id: 'gpu',       name: 'Better GPUs',       icon: '🖥️', unlockLevel: 0,  baseCost: 300,    growth: 1.7, max: 60, desc: '+12% brainrot income per level.',  apply: (l, e) => { e.income *= 1 + 0.12 * l; } },
+  { id: 'gpu',       name: 'Better GPUs',       icon: '🖥️', unlockLevel: 0,  baseCost: 300,    growth: 1.75, max: 60, desc: '+12% brainrot income per level.',  apply: (l, e) => { e.income *= 1 + 0.12 * l; } },
   { id: 'training',  name: 'Employee Training', icon: '🎓', unlockLevel: 0,  baseCost: 800,    growth: 1.85, max: 50, desc: '+10% employee multiplier per level.', apply: (l, e) => { e.emp *= 1 + 0.10 * l; } },
-  { id: 'momentum',  name: 'Momentum Engine',   icon: '🌀', unlockLevel: 7,  baseCost: 150000, growth: 2.0, max: 50, desc: '+7% global income per level.',      apply: (l, e) => { e.income *= 1 + 0.07 * l; } },
+  { id: 'momentum',  name: 'Momentum Engine',   icon: '🌀', unlockLevel: 7,  baseCost: 150000, growth: 2.1, max: 50, desc: '+7% global income per level.',      apply: (l, e) => { e.income *= 1 + 0.07 * l; } },
   { id: 'cooling',   name: 'Liquid Cooling',    icon: '❄️', unlockLevel: 3,  baseCost: 4000,   growth: 1.9, max: 40, desc: '+15% morale effectiveness per level.', apply: (l, e) => { e.morale *= 1 + 0.15 * l; } },
   { id: 'algo',      name: 'Algorithm Hacking', icon: '📈', unlockLevel: 4,  baseCost: 12000,  growth: 2.0, max: 40, desc: '+20% follower gain per level.',     apply: (l, e) => { e.followers *= 1 + 0.20 * l; } },
   { id: 'jackpot',   name: 'Jackpot Mode',      icon: '🎰', unlockLevel: 11, baseCost: 1.2e6,  growth: 2.2, max: 20, desc: '+4× viral multiplier per level.',   apply: (l, e) => { e.viralMult += 4 * l; } },
@@ -218,7 +218,7 @@ export const UPGRADES = [
   { id: 'luck',      name: 'Lucky Rolls',       icon: '🍀', unlockLevel: 8,  baseCost: 200000, growth: 2.2, max: 20, desc: 'Better gacha rarity odds (+ luck/level).', apply: (l, e) => { e.luck += 0.06 * l; } },
   { id: 'servers',   name: 'Offline Servers',   icon: '☁️', unlockLevel: 5,  baseCost: 40000,  growth: 2.0, max: 20, desc: '+25% offline earnings per level.',  apply: (l, e) => { e.offline *= 1 + 0.25 * l; } },
   { id: 'recruiter', name: 'AI Recruiter',      icon: '🧑‍💼', unlockLevel: 10, baseCost: 500000, growth: 2.3, max: 15, desc: '+1 token from every quest per level.', apply: (l, e) => { e.questTokens += l; } },
-  { id: 'tycoon',    name: 'Tycoon Tactics',    icon: '💼', unlockLevel: 13, baseCost: 5e6,    growth: 2.4, max: 30, desc: '+30% brainrot income per level (big late boost).', apply: (l, e) => { e.income *= 1 + 0.30 * l; } },
+  { id: 'tycoon',    name: 'Tycoon Tactics',    icon: '💼', unlockLevel: 13, baseCost: 5e6,    growth: 2.5, max: 30, desc: '+30% brainrot income per level (big late boost).', apply: (l, e) => { e.income *= 1 + 0.30 * l; } },
 ];
 
 // ----------------------------------------------------------------------------

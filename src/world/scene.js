@@ -36,11 +36,11 @@ export function initScene(canvasEl) {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.22;
+  renderer.toneMappingExposure = 1.12;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x9bd6ff); // flat, bright sky — no gradient
-  scene.fog = new THREE.Fog(0x9bd6ff, 85, 150);
+  setupSky();                                   // graded sky + image-based lighting
+  scene.fog = new THREE.Fog(0xe4e9f1, 80, 152); // atmospheric haze toward the horizon
 
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 240);
 
@@ -53,15 +53,42 @@ export function initScene(canvasEl) {
   return { scene, camera, renderer };
 }
 
+// Build a soft vertical-gradient sky and use it for both the backdrop and
+// image-based lighting (PMREM) so PBR materials pick up gentle reflections.
+// Falls back to a flat colour if anything in the env pipeline fails.
+function setupSky() {
+  try {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0.00, '#8fb6ec'); // zenith
+    g.addColorStop(0.42, '#cfe1f4');
+    g.addColorStop(0.50, '#eef2f6'); // bright horizon haze
+    g.addColorStop(0.58, '#ece2d2');
+    g.addColorStop(1.00, '#cdbfa8'); // ground bounce
+    x.fillStyle = g; x.fillRect(0, 0, 512, 256);
+    const sky = new THREE.CanvasTexture(c);
+    sky.mapping = THREE.EquirectangularReflectionMapping;
+    sky.colorSpace = THREE.SRGBColorSpace;
+    scene.background = sky;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromEquirectangular(sky).texture;
+    pmrem.dispose();
+  } catch (err) {
+    console.warn('[scene] sky/IBL unavailable, using flat sky', err);
+    scene.background = new THREE.Color(0xbcd6f2);
+  }
+}
+
 function setupLights() {
-  // Sky/ground hemisphere for soft, cohesive ambient colour.
-  const hemi = new THREE.HemisphereLight(0xeaf4ff, 0xd7c8b6, 0.85);
+  // Sky/ground hemisphere for soft, cohesive ambient colour (env adds the rest).
+  const hemi = new THREE.HemisphereLight(0xeaf4ff, 0xd7c8b6, 0.5);
   scene.add(hemi);
-  const ambient = new THREE.AmbientLight(0xffffff, 0.34);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.18);
   scene.add(ambient);
 
   // Warm key sun with crisp, soft-edged shadows.
-  const sun = new THREE.DirectionalLight(0xfff1da, 1.85);
+  const sun = new THREE.DirectionalLight(0xfff1da, 2.0);
   sun.position.set(16, 28, 12);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);

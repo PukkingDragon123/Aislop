@@ -99,9 +99,12 @@ it for that character automatically.
   coin-counter pops, confetti and warm three-point lighting with soft shadows.
 - **Clean flat UI:** bright, solid colours, no gradients, no loading screen —
   designed to feel hand-made and polished.
-- 3D isometric office (orthographic Three.js camera, soft shadows), a live wall
-  screen that cycles your top brainrots and full-screen memes, and an animated
-  title screen of two potatoes fighting over a brainrot.
+- **Cinematic stylized look:** image-based lighting from a graded sky (PMREM),
+  warm three-point key/fill/rim lights, soft shadows, filmic ACES tone-mapping,
+  subtle env reflections and a CSS vignette + film-grain grade over the scene.
+- 3D isometric office (orthographic Three.js camera), a live wall screen that
+  cycles your top brainrots and full-screen memes, and an animated title screen
+  of two potatoes fighting over a brainrot.
 
 ---
 
